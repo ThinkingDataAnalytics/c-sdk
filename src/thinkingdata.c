@@ -1,19 +1,26 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <string.h>
 
 #include "json.h"
 #include "util.h"
 #include "list.h"
 
 #if defined(USE_POSIX)
-#include <pthread.h>
-#include <regex.h>
-#include <sys/time.h>
+  #if defined(_WIN32)
+    #error Both USE_POSIX and _WIN32 are defined
+  #endif
+  #include <pthread.h>
+  #include <regex.h>
+  #include <sys/time.h>
 #elif defined(_WIN32)
-#include <windows.h>
-#include <sys/timeb.h>
-#include "pcre/pcre.h"
+  #include <windows.h>
+  #include <sys/timeb.h>
+  #include "pcre/pcre.h"
+#else
+  #error Neither USE_POSIX nor _WIN32 is defined
 #endif
 
 #include "thinkingdata_private.h"
@@ -24,41 +31,48 @@
 
 #define NAME_PATTERN "^[a-zA-Z#][a-zA-Z0-9_]{0,49}$"
 
-const char TA_DATA_KEY_TIME[] = "#time";
-const char TA_DATA_KEY_IP[] = "#ip";
-const char TA_DATA_KEY_UUID[] = "#uuid";
-const char TA_DATA_KEY_TYPE[] = "#type";
-const char TA_DATA_KEY_ACCOUNT_ID[] = "#account_id";
-const char TA_DATA_KEY_DISTINCT_ID[] = "#distinct_id";
-const char TA_DATA_KEY_EVENT_NAME[] = "#event_name";
-const char TA_DATA_KEY_LIB[] = "#lib";
-const char TA_DATA_KEY_LIB_VERSION[] = "#lib_version";
+const char TA_DATA_KEY_TIME[]         = "#time";
+const char TA_DATA_KEY_IP[]           = "#ip";
+const char TA_DATA_KEY_UUID[]         = "#uuid";
+const char TA_DATA_KEY_TYPE[]         = "#type";
+const char TA_DATA_KEY_ACCOUNT_ID[]   = "#account_id";
+const char TA_DATA_KEY_DISTINCT_ID[]  = "#distinct_id";
+const char TA_DATA_KEY_EVENT_NAME[]   = "#event_name";
+const char TA_DATA_KEY_EVENT_ID[]     = "#event_id";
+const char TA_DATA_FIRST_CHECK_ID[]   = "#first_check_id";
+const char TA_DATA_KEY_LIB[]          = "#lib";
+const char TA_DATA_KEY_LIB_VERSION[]  = "#lib_version";
 
-const char TA_CONFIG_ROTATE_MODE[] = "rotate_mode";
-const char TA_CONFIG_FILE_SIZE[] = "file_size";
-const char TA_CONFIG_FILE_PATH[] = "file_path";
-const char TA_CONFIG_FILE_PREFIX[] = "file_prefix";
-const char TA_CONFIG_LOG[] = "log";
+const char TA_CONFIG_ROTATE_MODE[]    = "rotate_mode";
+const char TA_CONFIG_FILE_SIZE[]      = "file_size";
+const char TA_CONFIG_FILE_PATH[]      = "file_path";
+const char TA_CONFIG_FILE_PREFIX[]    = "file_prefix";
+const char TA_CONFIG_LOG[]            = "log";
 
 typedef enum trackingType {
     TA_TRACK = 0,
+    TA_TRACK_UPDATE,
+    TA_TRACK_OVERWRITE,
     TA_USER_SET,
     TA_USER_SETONCE,
     TA_USER_UNSET,
     TA_USER_DEL,
     TA_USER_ADD,
-    TA_USER_APPEND
+    TA_USER_APPEND,
+
+    TA_TYPES_NUM
 } tracking_type_t;
 
-static inline void ta_type_names(char *types[]) {
-    //注意types数组大小
-    types[TA_TRACK] = "track";
-    types[TA_USER_SET] = "user_set";
-    types[TA_USER_SETONCE] = "user_setOnce";
-    types[TA_USER_UNSET] = "user_unset";
-    types[TA_USER_DEL] = "user_del";
-    types[TA_USER_ADD] = "user_add";
-    types[TA_USER_APPEND] = "user_append";
+static inline void ta_type_names(char *types[]){
+    types[TA_TRACK]           = "track";
+    types[TA_TRACK_UPDATE]    = "track_update";
+    types[TA_TRACK_OVERWRITE] = "track_overwrite";
+    types[TA_USER_SET]        = "user_set";
+    types[TA_USER_SETONCE]    = "user_setOnce";
+    types[TA_USER_UNSET]      = "user_unset";
+    types[TA_USER_DEL]        = "user_del";
+    types[TA_USER_ADD]        = "user_add";
+    types[TA_USER_APPEND]     = "user_append";
 }
 
 #define out_of_memory(l, n) do {                    \
@@ -299,7 +313,11 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
             }
         }
         FILE *file = NULL;
-        FOPEN(&file, file_path, "a");
+        unsigned int times = 0;
+        while ((file = fopen(file_path, "a")) == NULL && times++ < 10) {
+            fprintf(stderr, "Fail to open file %s: %s", file_path, strerror(errno));
+            snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, ++count);
+        }
         inter->last_file_count = count;
         inter->file = file;
         TA_SAFE_FREE(file_path);
@@ -381,7 +399,7 @@ struct ThinkingdataAnalytics {
     pcre *regex;
 #endif
     struct TAConsumer *consumer;
-    char *event_types[7];
+    char *event_types[TA_TYPES_NUM];
 };
 
 int ta_init(struct TAConsumer *consumer, ThinkingdataAnalytics **tracker) {
@@ -645,6 +663,7 @@ static int ta_internal_track(const char *account_id,
                              const char *distinct_id,
                              tracking_type_t type,
                              const char *event,
+                             const char *event_id,
                              const struct TANode *properties,
                              ThinkingdataAnalytics *ta) {
     int res = TA_OK;
@@ -693,11 +712,17 @@ static int ta_internal_track(const char *account_id,
     }
 
     TANode *final_properties = ta_init_dict_node("properties");
-    if (type == TA_TRACK) {
-        ta_add_string(TA_DATA_KEY_EVENT_NAME, event, (int) strlen(event), data);
+    if (type == TA_TRACK || type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
+        ta_add_string(TA_DATA_KEY_EVENT_NAME, event, (int)strlen(event), data);
         ta_add_string(TA_DATA_KEY_LIB, TA_LIB, strlen(TA_LIB), final_properties);
         ta_add_string(TA_DATA_KEY_LIB_VERSION, TA_LIB_VERSION, strlen(TA_LIB_VERSION), final_properties);
-
+        
+        if (type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
+            ta_add_string(TA_DATA_KEY_EVENT_ID, event_id, (int)strlen(event_id), data);
+        } else if (NULL != event_id) {
+            ta_add_string(TA_DATA_FIRST_CHECK_ID, event_id, (int)strlen(event_id), data);
+        }
+        
 #if defined(USE_POSIX)
         pthread_mutex_lock(&ta->mutex);
 #elif defined(_WIN32)
@@ -768,6 +793,52 @@ int ta_track(const char *account_id,
                              distinct_id,
                              TA_TRACK,
                              event,
+                             NULL,
+                             properties,
+                             ta);
+}
+        
+int ta_track_update(const char *account_id,
+                    const char *distinct_id,
+                    const char *event,
+                    const char *event_id,
+                    const TAProperties *properties,
+                    ThinkingdataAnalytics *ta) {
+    return ta_internal_track(account_id,
+                             distinct_id,
+                             TA_TRACK_UPDATE,
+                             event,
+                             event_id,
+                             properties,
+                             ta);
+}
+        
+int ta_track_overwrite(const char *account_id,
+                       const char *distinct_id,
+                       const char *event,
+                       const char *event_id,
+                       const TAProperties *properties,
+                       ThinkingdataAnalytics *ta) {
+    return ta_internal_track(account_id,
+                             distinct_id,
+                             TA_TRACK_OVERWRITE,
+                             event,
+                             event_id,
+                             properties,
+                             ta);
+}
+
+int ta_track_first_event(const char *account_id,
+                         const char *distinct_id,
+                         const char *event,
+                         const char *firstCheckId,
+                         const TAProperties *properties,
+                         ThinkingdataAnalytics *ta) {
+    return ta_internal_track(account_id,
+                             distinct_id,
+                             TA_TRACK,
+                             event,
+                             firstCheckId,
                              properties,
                              ta);
 }
@@ -780,6 +851,7 @@ int ta_user_track(const char *account_id,
     return ta_internal_track(account_id,
                              distinct_id,
                              type,
+                             NULL,
                              NULL,
                              properties,
                              ta);

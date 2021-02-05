@@ -123,6 +123,60 @@ int ta_track(const char* account_id,
              ThinkingdataAnalytics* ta);
 
 /**
+ 自定义 update 事件埋点
+ 
+ @param  account_id             用户 ID
+ @param  distinct_id            访客 ID
+ @param  event                  事件名称
+ @param  event_id                  事件 ID
+ @param  properties             事件属性，TAProperties 对象，NULL 表示无事件属性
+ @param  ta                     ThinkingdataAnalytics 实例
+ @return TA_OK                  埋点成功
+ */
+int ta_track_update(const char* account_id,
+                    const char* distinct_id,
+                    const char* event,
+                    const char* event_id,
+                    const TAProperties* properties,
+                    ThinkingdataAnalytics* ta);
+
+/**
+自定义 overwrite 事件埋点
+
+@param  account_id             用户 ID
+@param  distinct_id            访客 ID
+@param  event                  事件名称
+@param  event_id                  事件 ID
+@param  properties             事件属性，TAProperties 对象，NULL 表示无事件属性
+@param  ta                     ThinkingdataAnalytics 实例
+@return TA_OK                  埋点成功
+*/
+int ta_track_overwrite(const char *account_id,
+                       const char *distinct_id,
+                       const char *event,
+                       const char *event_id,
+                       const TAProperties *properties,
+                       ThinkingdataAnalytics *ta);
+
+/**
+自定义 firstevent 事件埋点
+
+@param  account_id             用户 ID
+@param  distinct_id            访客 ID
+@param  event                  事件名称
+@param  firstCheckId                  事件 ID
+@param  properties             事件属性，TAProperties 对象，NULL 表示无事件属性
+@param  ta                     ThinkingdataAnalytics 实例
+@return TA_OK                  埋点成功
+*/
+int ta_track_first_event(const char *account_id,
+                         const char *distinct_id,
+                         const char *event,
+                         const char *firstCheckId,
+                         const TAProperties *properties,
+                         ThinkingdataAnalytics *ta);
+
+/**
   设置用户属性
  
   @param  account_id             用户 ID
