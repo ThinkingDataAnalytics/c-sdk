@@ -257,30 +257,31 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
     }
 
     TALoggingConsumerInter *inter = (TALoggingConsumerInter *) this_;
-    char *file_name_date = TA_SAFE_MALLOC(512);
 
     struct tm tm;
     time_t t = time(NULL);
     LOCALTIME(&t, &tm);
 
     char *file_prefix = NULL;
-    int prefixLength = strlen(inter->file_prefix);
+    size_t prefixLength = strlen(inter->file_prefix);
     if (prefixLength > 0) {
-        file_prefix = (char *) malloc(prefixLength + 4);
+        file_prefix = (char *) malloc(prefixLength + 4 + 1);
         strcpy(file_prefix, inter->file_prefix);
         strcat(file_prefix, ".log");
     } else {
-        file_prefix = (char *) malloc(3);
+        file_prefix = (char *) malloc(3 + 1);
         strcpy(file_prefix, "log");
     }
 
+    char *file_name_date = TA_SAFE_MALLOC(512);
     if (inter->rotate_mode == DAILY) {
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-    } else if (inter->rotate_mode == HOURLY) { //默认按小时切分
+    } else {
+        //默认按小时切分
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1,
                  tm.tm_mday, tm.tm_hour);
     }
-    free(file_prefix);
+    TA_SAFE_FREE(file_prefix);
 
     int count = 0;
     bool need_new_file = false;
