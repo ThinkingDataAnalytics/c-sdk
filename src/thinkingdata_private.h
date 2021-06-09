@@ -1,7 +1,6 @@
 #ifndef THINKINGDATA_ANALYTICS_CORE_H
 #define THINKINGDATA_ANALYTICS_CORE_H
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -9,34 +8,36 @@
 #include "thinkingdata.h"
 
 typedef int (*ta_consumer_add)(void *this_, const char *event, unsigned long length);
+
 typedef int (*ta_consumer_flush)(void *this_);
+
 typedef int (*ta_consumer_close)(void *this_);
 
 struct TAConsumerOp {
-  ta_consumer_add   add;
-  ta_consumer_flush flush;
-  ta_consumer_close close;
+    ta_consumer_add add;
+    ta_consumer_flush flush;
+    ta_consumer_close close;
 };
 
 struct TAConsumer {
-  struct TAConsumerOp op;
-  void *this_;
+    struct TAConsumerOp op;
+    void *this_;
 };
 
 enum TANodeType {
-    TA_Error   = -1,
-    TA_Boolean =  1,
-    TA_NUMBER  =  2,
-    TA_INT     =  3,
-    TA_DATE    =  4,
-    TA_STRING  =  5,
-    TA_DICT    =  6,
-    TA_ARRAY   =  7,
+    TA_Error = -1,
+    TA_Boolean = 1,
+    TA_NUMBER = 2,
+    TA_INT = 3,
+    TA_DATE = 4,
+    TA_STRING = 5,
+    TA_DICT = 6,
+    TA_ARRAY = 7,
 };
 typedef int TANodeType;
 
 typedef union TANodeValue {
-    int boolean_;
+    TABool boolean_;
     double number_;
     long long int_;
     struct {
@@ -49,15 +50,17 @@ typedef union TANodeValue {
 
 typedef struct TANode {
     char *key;
-    
+
     TANodeType type;
     TANodeValue value;
 } TANode;
 
 #define TA_SAFE_MALLOC(n) ta_safe_malloc((n), __LINE__)
+
 void *ta_safe_malloc(unsigned long n, unsigned long line);
 
 #define TA_SAFE_FREE(curr) ta_safe_free((curr), __LINE__)
+
 void ta_safe_free(void *curr, unsigned long line);
 
 typedef struct TAListNode {

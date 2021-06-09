@@ -26,7 +26,7 @@
 #include "thinkingdata_private.h"
 #include "thinkingdata.h"
 
-#define TA_LIB_VERSION "1.2.0"
+#define TA_LIB_VERSION "1.2.1"
 #define TA_LIB "C"
 
 #define NAME_PATTERN "^[a-zA-Z#][a-zA-Z0-9_]{0,49}$"
@@ -207,7 +207,7 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
 
 typedef struct {
     int file_size;
-    bool log;
+    TABool log;
     char last_file_date[512];
     int last_file_count;
     char file_path[1024];
@@ -240,14 +240,14 @@ static int ta_logging_consumer_close(void *this_) {
     return TA_OK;
 }
 
-static bool file_size(char *file_name, int file_size) {
+static TABool file_size(char *file_name, int file_size) {
     struct stat buffer;
     stat(file_name, &buffer);
     long size = buffer.st_size / (1024 * 1024);
     if (size >= file_size) {
-        return true;
+        return TA_TRUE;
     } else {
-        return false;
+        return TA_FALSE;
     }
 }
 
@@ -284,7 +284,7 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
     TA_SAFE_FREE(file_prefix);
 
     int count = 0;
-    bool need_new_file = false;
+    TABool need_new_file = TA_FALSE;
     if (strcmp(inter->last_file_date, file_name_date) == 0) {
         if (inter->file_size > 0) {
             count = inter->last_file_count;
@@ -292,17 +292,17 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
             long size = ftell(inter->file) / (1024 * 1024);
             if (size >= inter->file_size) {
                 count++;
-                need_new_file = true;
+                need_new_file = TA_TRUE;
             }
         } else {
-            need_new_file = false;
+            need_new_file = TA_FALSE;
         }
     } else {
-        need_new_file = true;
+        need_new_file = TA_TRUE;
         snprintf(inter->last_file_date, 512, "%s", file_name_date);
     }
 
-    if (need_new_file == true) {
+    if (need_new_file == TA_TRUE) {
         char *file_path = TA_SAFE_MALLOC(1024);
         ta_logging_consumer_close(this_);
         snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
@@ -361,7 +361,7 @@ static void get_config_param(TALoggingConsumerInter *inter, const TAConfig *conf
             } else if (0 == strncmp(TA_CONFIG_LOG, curr->value->key, 256)) {
                 TANode *log_node = curr->value;
                 if (NULL != log_node) {
-                    inter->log = (bool) log_node->value.boolean_;
+                    inter->log = log_node->value.boolean_;
                 }
             }
         }

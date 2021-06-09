@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include "thinkingdata_private.h"
 
 char *print_object(const struct TANode *node, int depth);
