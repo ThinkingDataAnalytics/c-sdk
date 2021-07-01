@@ -20,10 +20,14 @@ char *convert_time_to_string(const TANode *time_node) {
 }
 
 char *ta_strdup(const char *str) {
+    int len;
+    char *new_str;
+
     if (!str)
         return NULL;
-    int len = (int) strlen(str);
-    char *new_str = (char *) TA_SAFE_MALLOC(len + 1);
+
+    len = (int) strlen(str);
+    new_str = (char *) TA_SAFE_MALLOC(len + 1);
     memcpy(new_str, str, len);
     new_str[len] = '\0';
     return new_str;
@@ -39,6 +43,7 @@ void ta_debug(const char *msg, ...) {
 void mkdirs(char *path) {
     int i, len;
     char str[1024];
+    char tempStr[1024];
     char split_flag;
 #ifdef WINVER
     split_flag='\\';
@@ -47,7 +52,6 @@ void mkdirs(char *path) {
 #endif
     strncpy(str, path, 1024);
     len = strlen(str);
-    char tempStr[1024];
     for (i = 0; i < len; i++) {
         tempStr[i] = str[i];
         if (str[i] == split_flag) {
@@ -59,7 +63,6 @@ void mkdirs(char *path) {
     if (file_exists(str) != 0) {
         mkdir(str, 0777);
     }
-    return;
 }
 
 int file_exists(const char *filename) {

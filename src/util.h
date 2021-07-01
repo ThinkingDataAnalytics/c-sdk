@@ -14,4 +14,4 @@ void mkdirs(char *path);
 
 int file_exists(const char *filename);
 
-#endif /* util_h */
+#endif

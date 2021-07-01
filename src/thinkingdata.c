@@ -9,45 +9,47 @@
 #include "list.h"
 
 #if defined(USE_POSIX)
-  #if defined(_WIN32)
-    #error Both USE_POSIX and _WIN32 are defined
-  #endif
-  #include <pthread.h>
-  #include <regex.h>
-  #include <sys/time.h>
+#if defined(_WIN32)
+#error Both USE_POSIX and _WIN32 are defined
+#endif
+
+#include <pthread.h>
+#include <regex.h>
+#include <sys/time.h>
+
 #elif defined(_WIN32)
-  #include <windows.h>
-  #include <sys/timeb.h>
-  #include "pcre/pcre.h"
+#include <windows.h>
+#include <sys/timeb.h>
+#include "pcre/pcre.h"
 #else
-  #error Neither USE_POSIX nor _WIN32 is defined
+#error Neither USE_POSIX nor _WIN32 is defined
 #endif
 
 #include "thinkingdata_private.h"
 #include "thinkingdata.h"
 
-#define TA_LIB_VERSION "1.2.1"
+#define TA_LIB_VERSION "1.2.2"
 #define TA_LIB "C"
 
 #define NAME_PATTERN "^[a-zA-Z#][a-zA-Z0-9_]{0,49}$"
 
-const char TA_DATA_KEY_TIME[]         = "#time";
-const char TA_DATA_KEY_IP[]           = "#ip";
-const char TA_DATA_KEY_UUID[]         = "#uuid";
-const char TA_DATA_KEY_TYPE[]         = "#type";
-const char TA_DATA_KEY_ACCOUNT_ID[]   = "#account_id";
-const char TA_DATA_KEY_DISTINCT_ID[]  = "#distinct_id";
-const char TA_DATA_KEY_EVENT_NAME[]   = "#event_name";
-const char TA_DATA_KEY_EVENT_ID[]     = "#event_id";
-const char TA_DATA_FIRST_CHECK_ID[]   = "#first_check_id";
-const char TA_DATA_KEY_LIB[]          = "#lib";
-const char TA_DATA_KEY_LIB_VERSION[]  = "#lib_version";
+const char TA_DATA_KEY_TIME[] = "#time";
+const char TA_DATA_KEY_IP[] = "#ip";
+const char TA_DATA_KEY_UUID[] = "#uuid";
+const char TA_DATA_KEY_TYPE[] = "#type";
+const char TA_DATA_KEY_ACCOUNT_ID[] = "#account_id";
+const char TA_DATA_KEY_DISTINCT_ID[] = "#distinct_id";
+const char TA_DATA_KEY_EVENT_NAME[] = "#event_name";
+const char TA_DATA_KEY_EVENT_ID[] = "#event_id";
+const char TA_DATA_FIRST_CHECK_ID[] = "#first_check_id";
+const char TA_DATA_KEY_LIB[] = "#lib";
+const char TA_DATA_KEY_LIB_VERSION[] = "#lib_version";
 
-const char TA_CONFIG_ROTATE_MODE[]    = "rotate_mode";
-const char TA_CONFIG_FILE_SIZE[]      = "file_size";
-const char TA_CONFIG_FILE_PATH[]      = "file_path";
-const char TA_CONFIG_FILE_PREFIX[]    = "file_prefix";
-const char TA_CONFIG_LOG[]            = "log";
+const char TA_CONFIG_ROTATE_MODE[] = "rotate_mode";
+const char TA_CONFIG_FILE_SIZE[] = "file_size";
+const char TA_CONFIG_FILE_PATH[] = "file_path";
+const char TA_CONFIG_FILE_PREFIX[] = "file_prefix";
+const char TA_CONFIG_LOG[] = "log";
 
 typedef enum trackingType {
     TA_TRACK = 0,
@@ -63,16 +65,16 @@ typedef enum trackingType {
     TA_TYPES_NUM
 } tracking_type_t;
 
-static inline void ta_type_names(char *types[]){
-    types[TA_TRACK]           = "track";
-    types[TA_TRACK_UPDATE]    = "track_update";
+static void ta_type_names(char *types[]) {
+    types[TA_TRACK] = "track";
+    types[TA_TRACK_UPDATE] = "track_update";
     types[TA_TRACK_OVERWRITE] = "track_overwrite";
-    types[TA_USER_SET]        = "user_set";
-    types[TA_USER_SETONCE]    = "user_setOnce";
-    types[TA_USER_UNSET]      = "user_unset";
-    types[TA_USER_DEL]        = "user_del";
-    types[TA_USER_ADD]        = "user_add";
-    types[TA_USER_APPEND]     = "user_append";
+    types[TA_USER_SET] = "user_set";
+    types[TA_USER_SETONCE] = "user_setOnce";
+    types[TA_USER_UNSET] = "user_unset";
+    types[TA_USER_DEL] = "user_del";
+    types[TA_USER_ADD] = "user_add";
+    types[TA_USER_APPEND] = "user_append";
 }
 
 #define out_of_memory(l, n) do {                    \
@@ -88,7 +90,7 @@ void *ta_safe_malloc(unsigned long n, unsigned long line) {
     return ptr;
 }
 
-void ta_safe_free(void *curr, __attribute__((unused)) unsigned long line) {
+void ta_safe_free(void *curr) {
     if (curr) {
         free(curr);
         curr = NULL;
@@ -108,77 +110,93 @@ void ta_free_properties(TAProperties *properties) {
 }
 
 int ta_add_bool(const char *key, TABool bool_, TAProperties *properties) {
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
-    TANodeValue value;
+
     value.boolean_ = bool_;
-    TANode *node_new = creat_new_node(TA_Boolean, key, &value);
+    node_new = creat_new_node(TA_Boolean, key, &value);
     ta_add_node(node_new, properties);
     return TA_OK;
 }
 
 int ta_add_number(const char *key, double number_, TAProperties *properties) {
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
-    TANodeValue value;
+
     value.number_ = number_;
-    TANode *node_new = creat_new_node(TA_NUMBER, key, &value);
+    node_new = creat_new_node(TA_NUMBER, key, &value);
     ta_add_node(node_new, properties);
     return TA_OK;
 }
 
 int ta_add_int(const char *key, long long int_, TAProperties *properties) {
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
-    TANodeValue value;
     value.int_ = int_;
-    TANode *node_new = creat_new_node(TA_INT, key, &value);
+    node_new = creat_new_node(TA_INT, key, &value);
     ta_add_node(node_new, properties);
     return TA_OK;
 }
 
 int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties *properties) {
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    TANodeValue value;
     value.date_.seconds = seconds;
     value.date_.microseconds = microseconds;
-    TANode *node_new = creat_new_node(TA_DATE, key, &value);
+    node_new = creat_new_node(TA_DATE, key, &value);
     ta_add_node(node_new, properties);
     return TA_OK;
 }
 
 int ta_add_string(const char *key, const char *string_, unsigned int length, TAProperties *properties) {
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    TANodeValue value;
     value.string_ = (char *) TA_SAFE_MALLOC(length + 1);
     memcpy(value.string_, string_, length);
     value.string_[length] = 0;
-    TANode *node_new = creat_new_node(TA_STRING, key, &value);
+    node_new = creat_new_node(TA_STRING, key, &value);
     ta_add_node(node_new, properties);
     return TA_OK;
 }
 
 int ta_append_array(const char *key, const char *string_, unsigned int length, TAProperties *properties) {
+    TANode *list;
+    TANodeValue value;
+    TANode *node_new;
+
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    TANode *list = ta_find_node(key, properties);
+    list = ta_find_node(key, properties);
     if (NULL == list) {
         list = ta_init_array_node(key);
         list->type = TA_ARRAY;
@@ -188,11 +206,10 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
         ta_add_node(list, properties);
     }
 
-    TANodeValue value;
     value.string_ = (char *) TA_SAFE_MALLOC(length + 1);
     memcpy(value.string_, string_, length);
     value.string_[length] = 0;
-    TANode *node_new = creat_new_node(TA_STRING, NULL, &value);
+    node_new = creat_new_node(TA_STRING, NULL, &value);
     if (NULL == node_new) {
         return TA_MALLOC_ERROR;
     }
@@ -225,11 +242,13 @@ static int ta_logging_consumer_flush(void *this_) {
 }
 
 static int ta_logging_consumer_close(void *this_) {
+    TALoggingConsumerInter *inter;
+
     if (NULL == this_) {
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    TALoggingConsumerInter *inter = (TALoggingConsumerInter *) this_;
+    inter = (TALoggingConsumerInter *) this_;
     if (NULL != inter->file) {
         fflush(inter->file);
         fclose(inter->file);
@@ -242,8 +261,10 @@ static int ta_logging_consumer_close(void *this_) {
 
 static TABool file_size(char *file_name, int file_size) {
     struct stat buffer;
+    long size;
+
     stat(file_name, &buffer);
-    long size = buffer.st_size / (1024 * 1024);
+    size = buffer.st_size / (1024 * 1024);
     if (size >= file_size) {
         return TA_TRUE;
     } else {
@@ -252,18 +273,22 @@ static TABool file_size(char *file_name, int file_size) {
 }
 
 static int ta_logging_consumer_add(void *this_, const char *event, unsigned long length) {
+    TALoggingConsumerInter *inter;
+    struct tm tm;
+    time_t t;
+    char *file_prefix = NULL, *file_name_date = NULL;
+    size_t prefixLength;
+    int count = 0;
+    TABool need_new_file = TA_FALSE;
+
     if (NULL == this_ || NULL == event) {
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    TALoggingConsumerInter *inter = (TALoggingConsumerInter *) this_;
-
-    struct tm tm;
-    time_t t = time(NULL);
+    inter = (TALoggingConsumerInter *) this_;
+    t = time(NULL);
     LOCALTIME(&t, &tm);
-
-    char *file_prefix = NULL;
-    size_t prefixLength = strlen(inter->file_prefix);
+    prefixLength = strlen(inter->file_prefix);
     if (prefixLength > 0) {
         file_prefix = (char *) malloc(prefixLength + 4 + 1);
         strcpy(file_prefix, inter->file_prefix);
@@ -273,23 +298,21 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
         strcpy(file_prefix, "log");
     }
 
-    char *file_name_date = TA_SAFE_MALLOC(512);
+    file_name_date = TA_SAFE_MALLOC(512);
     if (inter->rotate_mode == DAILY) {
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
     } else {
-        //默认按小时切分
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1,
                  tm.tm_mday, tm.tm_hour);
     }
     TA_SAFE_FREE(file_prefix);
 
-    int count = 0;
-    TABool need_new_file = TA_FALSE;
     if (strcmp(inter->last_file_date, file_name_date) == 0) {
         if (inter->file_size > 0) {
+            long size;
             count = inter->last_file_count;
             fseek(inter->file, 0, SEEK_END);
-            long size = ftell(inter->file) / (1024 * 1024);
+            size = ftell(inter->file) / (1024 * 1024);
             if (size >= inter->file_size) {
                 count++;
                 need_new_file = TA_TRUE;
@@ -303,6 +326,8 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
     }
 
     if (need_new_file == TA_TRUE) {
+        FILE *file = NULL;
+        unsigned int times = 0;
         char *file_path = TA_SAFE_MALLOC(1024);
         ta_logging_consumer_close(this_);
         snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
@@ -313,8 +338,7 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
                 snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
             }
         }
-        FILE *file = NULL;
-        unsigned int times = 0;
+
         while ((file = fopen(file_path, "a")) == NULL && times++ < 10) {
             fprintf(stderr, "Fail to open file %s: %s", file_path, strerror(errno));
             snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, ++count);
@@ -422,13 +446,16 @@ int ta_init(struct TAConsumer *consumer, ThinkingdataAnalytics **tracker) {
         return TA_MALLOC_ERROR;
     }
 #elif defined(_WIN32)
-    InitializeCriticalSection(&((*tracker)->mutex));
+    {
+        const char *error_message = NULL;
+        int offset = -1;
 
-    const char *error_message = NULL;
-    int offset = -1;
-    if (NULL == ((*tracker)->regex = pcre_compile(NAME_PATTERN, PCRE_EXTENDED | PCRE_CASELESS, &error_message, &offset, NULL))) {
-        fprintf(stderr, "Compile regex error. ErrMsg:%s, Offset:%d", error_message, offset);
-        return TA_MALLOC_ERROR;
+        InitializeCriticalSection(&((*tracker)->mutex));
+
+        if (NULL == ((*tracker)->regex = pcre_compile(NAME_PATTERN, PCRE_EXTENDED | PCRE_CASELESS, &error_message, &offset, NULL))) {
+            fprintf(stderr, "Compile regex error. ErrMsg:%s, Offset:%d", error_message, offset);
+            return TA_MALLOC_ERROR;
+        }
     }
 #endif
 
@@ -468,8 +495,9 @@ void ta_flush(ThinkingdataAnalytics *ta) {
     ta->consumer->op.flush(ta->consumer->this_);
 }
 
-// 设置公共事件属性
 int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytics *ta) {
+    struct TAListNode *curr;
+
     if (NULL == ta || NULL == properties || TA_DICT != properties->type) {
         return TA_INVALID_PARAMETER_ERROR;
     }
@@ -479,7 +507,7 @@ int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytic
 #elif defined(_WIN32)
     EnterCriticalSection(&ta->mutex);
 #endif
-    struct TAListNode *curr = properties->value.child;
+    curr = properties->value.child;
     while (NULL != curr) {
         ta_add_node_copy(curr->value, ta->super_properties);
         curr = curr->next;
@@ -493,7 +521,6 @@ int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytic
     return TA_OK;
 }
 
-// 清除公共事件属性
 int ta_unset_super_properties(const char *key, ThinkingdataAnalytics *ta) {
 #if defined(USE_POSIX)
     pthread_mutex_lock(&ta->mutex);
@@ -509,7 +536,6 @@ int ta_unset_super_properties(const char *key, ThinkingdataAnalytics *ta) {
     return TA_OK;
 }
 
-// 清空公共事件属性
 int ta_clear_super_properties(ThinkingdataAnalytics *ta) {
 #if defined(USE_POSIX)
     pthread_mutex_lock(&ta->mutex);
@@ -531,11 +557,12 @@ void ta_set_dynamic_properties(ta_dynamic_func func, ThinkingdataAnalytics *ta) 
 }
 
 #if defined(USE_POSIX)
+
 static int ta_assert_key_name(const char *key, regex_t regex) {
 #elif defined(_WIN32)
-static int ta_assert_key_name(const char *key, pcre *regex) {
+    static int ta_assert_key_name(const char *key, pcre *regex) {
 #else
-static int ta_assert_key_name(const char *key) {
+    static int ta_assert_key_name(const char *key) {
 #endif
     unsigned long key_len = (NULL == key ? (unsigned long) -1 : strlen(key));
     if (key_len < 1 || key_len > 255) {
@@ -580,10 +607,10 @@ static int ta_check_parameter(const char *account_id,
         (NULL == event
          #if defined(USE_POSIX)
          || TA_OK != ta_assert_key_name(event, ta->regex))) {
-         #elif defined(_WIN32)
-         || TA_OK != ta_assert_key_name(event, ta->regex))) {
-         #else
-         || TA_OK != ta_assert_key_name(event))) {
+#elif defined(_WIN32)
+        || TA_OK != ta_assert_key_name(event, ta->regex))) {
+#else
+        || TA_OK != ta_assert_key_name(event))) {
 #endif
         fprintf(stderr, "Invalid event name [%s].\n", event == NULL ? "NULL" : event);
         return TA_INVALID_PARAMETER_ERROR;
@@ -595,11 +622,11 @@ static int ta_check_parameter(const char *account_id,
             if (NULL == curr->value->key
                 #if defined(USE_POSIX)
                 || TA_OK != ta_assert_key_name(curr->value->key, ta->regex)) {
-                #elif defined(_WIN32)
+#elif defined(_WIN32)
                 || TA_OK != ta_assert_key_name(curr->value->key, ta->regex)) {
-                #else
+#else
                 || TA_OK != ta_assert_key_name(curr->value->key)) {
-                #endif
+#endif
                 fprintf(stderr, "Invalid property name [%s].\n", NULL == curr->value->key ? "NULL" : curr->value->key);
                 return TA_INVALID_PARAMETER_ERROR;
             }
@@ -655,11 +682,6 @@ static int analysis_properties(const struct TANode *properties, TANode *data, TA
     return TA_OK;
 }
 
-static inline char *get_tracking_type(ThinkingdataAnalytics *tracker, tracking_type_t type) {
-    TA_ASSERT(NULL != tracker);
-    return tracker->event_types[type];
-}
-
 static int ta_internal_track(const char *account_id,
                              const char *distinct_id,
                              tracking_type_t type,
@@ -667,17 +689,24 @@ static int ta_internal_track(const char *account_id,
                              const char *event_id,
                              const struct TANode *properties,
                              ThinkingdataAnalytics *ta) {
+    TANode *data;
     int res = TA_OK;
+    char *event_type;
+    int seconds;
+    int microseconds = 0;
+    TANode *final_properties;
+    TAListNode *curr;
+    char *log_str;
+    TALoggingConsumerInter *inter;
 
     if (TA_OK != (res = ta_check_parameter(account_id, distinct_id, type, event, properties, ta))) {
         return res;
     }
 
-    TANode *data = ta_init_dict_node("data");
-
-    if (TA_OK !=
-        (res = ta_add_string(TA_DATA_KEY_TYPE, get_tracking_type(ta, type), (int) strlen(get_tracking_type(ta, type)),
-                             data))) {
+    data = ta_init_dict_node("data");
+    TA_ASSERT(NULL != ta);
+    event_type = ta->event_types[type];
+    if (TA_OK != (res = ta_add_string(TA_DATA_KEY_TYPE, event_type, (int) strlen(event_type), data))) {
         return res;
     }
 
@@ -691,45 +720,45 @@ static int ta_internal_track(const char *account_id,
         return res;
     }
 
-    int seconds;
-    int microseconds = 0;
 
+    {
 #if defined(USE_POSIX)
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    seconds = (int)now.tv_sec;
-    microseconds = now.tv_usec / 1000;
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        seconds = (int) now.tv_sec;
+        microseconds = now.tv_usec / 1000;
 #elif defined(_WIN32)
-    struct timeb now;
-    ftime(&now);
-    seconds = now.time;
-    microseconds = now.millitm;
+        struct timeb now;
+        ftime(&now);
+        seconds = now.time;
+        microseconds = now.millitm;
 #else
-    time_t now = time(NULL);
-    seconds = (int) now;
+        time_t now = time(NULL);
+        seconds = (int) now;
 #endif
+    }
     if (TA_OK != (res = ta_add_date(TA_DATA_KEY_TIME, seconds, microseconds, data))) {
         return res;
     }
 
-    TANode *final_properties = ta_init_dict_node("properties");
+    final_properties = ta_init_dict_node("properties");
     if (type == TA_TRACK || type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
-        ta_add_string(TA_DATA_KEY_EVENT_NAME, event, (int)strlen(event), data);
+        ta_add_string(TA_DATA_KEY_EVENT_NAME, event, (int) strlen(event), data);
         ta_add_string(TA_DATA_KEY_LIB, TA_LIB, strlen(TA_LIB), final_properties);
         ta_add_string(TA_DATA_KEY_LIB_VERSION, TA_LIB_VERSION, strlen(TA_LIB_VERSION), final_properties);
-        
+
         if (type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
-            ta_add_string(TA_DATA_KEY_EVENT_ID, event_id, (int)strlen(event_id), data);
+            ta_add_string(TA_DATA_KEY_EVENT_ID, event_id, (int) strlen(event_id), data);
         } else if (NULL != event_id) {
-            ta_add_string(TA_DATA_FIRST_CHECK_ID, event_id, (int)strlen(event_id), data);
+            ta_add_string(TA_DATA_FIRST_CHECK_ID, event_id, (int) strlen(event_id), data);
         }
-        
+
 #if defined(USE_POSIX)
         pthread_mutex_lock(&ta->mutex);
 #elif defined(_WIN32)
         EnterCriticalSection(&ta->mutex);
 #endif
-        TAListNode *curr = ta->super_properties->value.child;
+        curr = ta->super_properties->value.child;
         while (NULL != curr) {
             ta_add_node_copy(curr->value, final_properties);
             curr = curr->next;
@@ -758,9 +787,9 @@ static int ta_internal_track(const char *account_id,
     }
 
     ta_add_node(final_properties, data);
-    char *log_str = print_node(data, 0);
+    log_str = print_node(data, 0);
 
-    TALoggingConsumerInter *inter = (TALoggingConsumerInter *) ta->consumer->this_;
+    inter = (TALoggingConsumerInter *) ta->consumer->this_;
     if (inter->log) {
         ta_debug("[ThinkingSDK] data:%s\n", log_str);
     }
@@ -798,7 +827,7 @@ int ta_track(const char *account_id,
                              properties,
                              ta);
 }
-        
+
 int ta_track_update(const char *account_id,
                     const char *distinct_id,
                     const char *event,
@@ -813,7 +842,7 @@ int ta_track_update(const char *account_id,
                              properties,
                              ta);
 }
-        
+
 int ta_track_overwrite(const char *account_id,
                        const char *distinct_id,
                        const char *event,

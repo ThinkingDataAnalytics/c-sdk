@@ -199,11 +199,11 @@ char *print_object(const struct TANode *node, int depth) {
 }
 
 char *print_node(const struct TANode *node, int depth) {
+    char *out = NULL;
+
     if (NULL == node) {
         return NULL;
     }
-    
-    char *out = NULL;
     
     switch(node->type) {
         case TA_NUMBER:

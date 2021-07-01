@@ -59,9 +59,9 @@ typedef struct TANode {
 
 void *ta_safe_malloc(unsigned long n, unsigned long line);
 
-#define TA_SAFE_FREE(curr) ta_safe_free((curr), __LINE__)
+#define TA_SAFE_FREE(curr) ta_safe_free((curr))
 
-void ta_safe_free(void *curr, unsigned long line);
+void ta_safe_free(void *curr);
 
 typedef struct TAListNode {
     struct TAListNode *next;
@@ -94,4 +94,4 @@ if (0 != err) { \
 #endif
 #endif
 
-#endif  // THINKINGDATA_ANALYTICS_CORE_H
+#endif  /* THINKINGDATA_ANALYTICS_CORE_H*/

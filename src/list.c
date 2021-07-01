@@ -28,12 +28,15 @@ void list_iterator_destroy(List_iterator *self) {
 }
 
 struct TANode *ta_find_node(const char *key, const struct TANode *parent) {
+    List_iterator *it;
+    TAListNode *curr;
+
     if (parent->type != TA_DICT || NULL == key) {
         return NULL;
     }
     
-    List_iterator *it = list_iterator_new(parent->value.child);
-    TAListNode *curr = list_iterator_next(it);
+    it = list_iterator_new(parent->value.child);
+    curr = list_iterator_next(it);
     while (NULL != curr) {
         if (NULL != curr->value->key && 0 == strncmp(curr->value->key, key, 256)) {
             list_iterator_destroy(it);
@@ -99,6 +102,10 @@ void ta_delete_node(const char *key, struct TANode *parent) {
 }
 
 void ta_add_node_copy(struct TANode *node, struct TANode *parent) {
+    struct TAListNode *new_list_node;
+    TANode *node_new;
+    TANodeValue *value;
+
     if (TA_DICT == parent->type) {
         if (NULL == node->key) {
             return;
@@ -107,12 +114,12 @@ void ta_add_node_copy(struct TANode *node, struct TANode *parent) {
         ta_delete_node(node->key, parent);
     }
     
-    struct TAListNode *new_list_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
+    new_list_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
     new_list_node->next = parent->value.child;
     parent->value.child = new_list_node;
 
-    TANode *node_new = ta_malloc_node(value_get_type(node), node->key);
-    TANodeValue *value = (union TANodeValue*)TA_SAFE_MALLOC(sizeof(union TANodeValue));
+    node_new = ta_malloc_node(value_get_type(node), node->key);
+    value = (union TANodeValue*)TA_SAFE_MALLOC(sizeof(union TANodeValue));
     
     switch(node->type) {
         case TA_STRING:
@@ -149,10 +156,11 @@ void ta_add_node_copy(struct TANode *node, struct TANode *parent) {
 
     new_list_node->value = node_new;
     TA_SAFE_FREE(value);
-    return;
 }
 
 struct TAListNode *ta_add_node(struct TANode *node, struct TANode *parent) {
+    struct TAListNode *new_node;
+
     if (TA_DICT == parent->type) {
         if (NULL == node->key) {
             return NULL;
@@ -161,7 +169,7 @@ struct TAListNode *ta_add_node(struct TANode *node, struct TANode *parent) {
         ta_delete_node(node->key, parent);
     }
     
-    struct TAListNode *new_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
+    new_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
     new_node->next = parent->value.child;
     parent->value.child = new_node;
     new_node->value = node;
