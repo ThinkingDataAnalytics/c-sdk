@@ -350,6 +350,7 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
 
     fwrite(event, length, 1, inter->file);
     fwrite("\n", 1, 1, inter->file);
+    fflush(inter->file);
 
     TA_SAFE_FREE(file_name_date);
     return TA_OK;
