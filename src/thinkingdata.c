@@ -28,7 +28,7 @@
 #include "thinkingdata_private.h"
 #include "thinkingdata.h"
 
-#define TA_LIB_VERSION "1.2.2"
+#define TA_LIB_VERSION "1.2.3"
 #define TA_LIB "C"
 
 #define NAME_PATTERN "^[a-zA-Z#][a-zA-Z0-9_]{0,49}$"
@@ -675,6 +675,14 @@ static int analysis_properties(const struct TANode *properties, TANode *data, TA
                     return res;
                 }
             }
+        } else if (NULL != curr->value->key && 0 == strncmp(TA_DATA_FIRST_CHECK_ID, curr->value->key, 256)) {
+            TANode *first_check_id_node = curr->value;
+            if (NULL != first_check_id_node) {
+                if (TA_OK != (res = ta_add_string(TA_DATA_FIRST_CHECK_ID, first_check_id_node->value.string_,
+                                                  (int) strlen(first_check_id_node->value.string_), data))) {
+                    return res;
+                }
+            }
         } else {
             ta_add_node_copy(curr->value, final_properties);
         }
@@ -750,8 +758,6 @@ static int ta_internal_track(const char *account_id,
 
         if (type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
             ta_add_string(TA_DATA_KEY_EVENT_ID, event_id, (int) strlen(event_id), data);
-        } else if (NULL != event_id) {
-            ta_add_string(TA_DATA_FIRST_CHECK_ID, event_id, (int) strlen(event_id), data);
         }
 
 #if defined(USE_POSIX)
