@@ -112,6 +112,5 @@ HttpResponse *ta_http_post(
 
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response->status);
     curl_easy_cleanup(curl);
-    printf("response end \n");
     return response;
 }

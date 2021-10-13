@@ -383,7 +383,7 @@ static int ta_assert_key_name(const char *key, regex_t regex) {
 
 static int ta_check_parameter(const char *account_id,
                               const char *distinct_id,
-                              TANodeType type,
+                              tracking_type_t type,
                               const char *event,
                               const struct TANode *properties,
                               ThinkingdataAnalytics *ta) {

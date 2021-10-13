@@ -29,7 +29,7 @@ struct TAConsumer {
     void *this_;
 };
 
-enum TANodeType {
+enum TANodeType_ {
     TA_Error = -1,
     TA_Boolean = 1,
     TA_NUMBER = 2,
