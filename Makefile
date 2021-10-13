@@ -1,26 +1,34 @@
 CC=gcc
-CFLAGS=-Wall -W -I. -DUSE_POSIX -fPIC
+CFLAGS=-Wall -W -Iinclude -DUSE_POSIX -fPIC
 
-all: sdk-demo
-	ar rcs libthinkingdata.a json.o util.o list.o thinkingdata.o
+all: libthinkingdata
 	mkdir -p ./output/include ./output/lib
-	cp src/thinkingdata.h ./output/include/.
+	cp -r include ./output
 	cp libthinkingdata.a ./output/lib/.
 
-sdk-demo: thinkingdata.o json.o util.o list.o
+libthinkingdata: json.o util.o list.o thinkingdata.o http_client.o
+	ar rcs libthinkingdata.a json.o util.o list.o thinkingdata.o http_client.o
+	mkdir -p ./output/include ./output/lib
+	cp include/thinkingdata.h ./output/include/.
+	cp libthinkingdata.a ./output/lib/.
+
+sdk-demo: thinkingdata.o json.o util.o list.o http_client.o
 	$(CC) -o $@ demo/demo.c $^ $(CFLAGS)
 
-thinkingdata.o: src/thinkingdata.c src/thinkingdata.h src/thinkingdata_private.h 
+thinkingdata.o: src/thinkingdata.c
 	$(CC) -c src/thinkingdata.c $(CFLAGS)
 
-list.o: src/list.c src/list.h 
+list.o: src/list.c
 	$(CC) -c src/list.c $(CFLAGS)
 
-util.o: src/util.c src/util.h 
+util.o: src/util.c
 	$(CC) -c src/util.c $(CFLAGS)
 
-json.o: src/json.c src/json.h 
+json.o: src/json.c
 	$(CC) -c src/json.c $(CFLAGS)
+
+http_client.o: src/http_client.c src/http_client.c
+	$(CC) -c src/http_client.c $(CFLAGS)
 
 .PHONY: clean
 	

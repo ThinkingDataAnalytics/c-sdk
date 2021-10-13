@@ -5,7 +5,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "thinkingdata.h"
+#include <thinkingdata.h>
+
+#define TA_LIB_VERSION "1.3.0"
+#define TA_LIB "C"
+
+const char TA_CONFIG_LOG[];
 
 typedef int (*ta_consumer_add)(void *this_, const char *event, unsigned long length);
 
@@ -58,6 +63,10 @@ typedef struct TANode {
 #define TA_SAFE_MALLOC(n) ta_safe_malloc((n), __LINE__)
 
 void *ta_safe_malloc(unsigned long n, unsigned long line);
+
+#define TA_SAFE_REALLOC(p, n) ta_safe_realloc((p), (n), __LINE__)
+
+void *ta_safe_realloc(void *p, unsigned long n, unsigned long line);
 
 #define TA_SAFE_FREE(curr) ta_safe_free((curr))
 

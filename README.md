@@ -1,20 +1,69 @@
-# ThinkingData C SDK for server side developing
+# ThinkingData C SDK
 
-### 初始化方法:
+### 使用CMake生成项目文件，默认情况会生成thinkingdata库和thinkingdata_http库，thinkingdata写入本地文件，thinkingdata_http直接发送到服务器
+### 可以根据实际情况进行使用，当使用thinkingdata_http时，需要将thirdparty/curl/lib/libcurl.dll文件引入到项目中
+
+#### Debug build
+```shell
+mkdir cmake-build-debug
+cmake -DCMAKE_BUILD_TYPE=Debug cmake-build-debug
+```
+
+#### Release build
+```shell
+mkdir cmake-build-release
+cmake -DCMAKE_BUILD_TYPE=Release cmake-build-release
+```
+
+### API描述
+#### 0.初始化:
 ```c
+    //logging_consumer
     TAConfig* config = ta_init_properties();
-    
-    TA_ASSERT(TA_OK == ta_add_string("file_path", "YOUR_LOG_PATH", strlen("YOUR_LOG_PATH"), config)); //配置日志路径 YOUR_LOG_PATH 需要更改为日志存储的目录
+
+    //配置日志路径 YOUR_LOG_PATH 需要更改为日志存储的目录
+    TA_ASSERT(TA_OK == ta_add_string("file_path", "YOUR_LOG_PATH", strlen("YOUR_LOG_PATH"), config)); 
     
     //按时间切分 默认按小时切分
     //TA_ASSERT(TA_OK == ta_add_int("rotate_mode", DAILY, config)); //按天切分
     TA_ASSERT(TA_OK == ta_add_int("rotate_mode", HOURLY, config)); //按小时切分
     
     //按文件大小切分 
-//    TA_ASSERT(TA_OK == ta_add_int("file_size", 1024, config));
+    //TA_ASSERT(TA_OK == ta_add_int("file_size", 1024, config));
     
-    TALoggingConsumer* consumer = NULL;
-    if (TA_OK != ta_init_logging_consumer(&consumer, config)) {
+    TAConsumer* consumer = NULL;
+    if (TA_OK != ta_init_consumer(&consumer, config)) {
+        fprintf(stderr, "Failed to initialize the consumer.");
+        return 1;
+    }
+    ta_free_properties(config);
+
+    ThinkingdataAnalytics *ta = NULL;
+    if (TA_OK != ta_init(consumer, &ta)) {
+        fprintf(stderr, "Failed to initialize the SDK.");
+        return 1;
+    }
+    
+    //batch_consumer
+    TAConfig* config = ta_init_properties();
+
+    //配置接收地址
+    TA_ASSERT(TA_OK == ta_add_string("push_url", "RECEIVER_URL", strlen("RECEIVER_URL"), config));
+    
+    //配置appid
+    TA_ASSERT(TA_OK == ta_add_string("appid", "YOUR_APPID", strlen("YOUR_APPID"),config));
+    
+    //配置每批上传数据量，默认20
+    TA_ASSERT(TA_OK == ta_add_int("batch_size", 10, config));
+
+    //配置最大缓存批次量，默认50
+    TA_ASSERT(TA_OK == ta_add_int("max_cache_size", 50, config));
+    
+    //配置超时时间，单位秒，默认30
+    TA_ASSERT(TA_OK == ta_add_int("timeout", 30, config));
+
+    TAConsumer* consumer = NULL;
+    if (TA_OK != ta_init_consumer(&consumer, config)) {
         fprintf(stderr, "Failed to initialize the consumer.");
         return 1;
     }
@@ -30,7 +79,6 @@
 文件默认以小时切分，需要搭配 LogBus 进行上传
 YOUR_LOG_PATH 需要更改为日志存储的目录，您只需将 LogBus 的监听文件夹地址设置为此处的地址，即可使用 LogBus 进行数据的监听上传。
 
-### 使用示例
 #### 1.track 方法：
 ```c
     const char* distinct_id = "ABC123";

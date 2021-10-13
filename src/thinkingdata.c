@@ -1,8 +1,5 @@
 #include <string.h>
-#include <stdint.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
 
 #include "json.h"
 #include "util.h"
@@ -20,18 +17,26 @@
 #elif defined(_WIN32)
 #include <windows.h>
 #include <sys/timeb.h>
-#include "pcre/pcre.h"
+#include <pcre.h>
 #else
 #error Neither USE_POSIX nor _WIN32 is defined
 #endif
 
 #include "thinkingdata_private.h"
-#include "thinkingdata.h"
-
-#define TA_LIB_VERSION "1.2.3"
-#define TA_LIB "C"
 
 #define NAME_PATTERN "^[a-zA-Z#][a-zA-Z0-9_]{0,49}$"
+
+#if defined(USE_POSIX)
+#define TA_LOCK(t) pthread_mutex_lock(t)
+#elif defined(_WIN32)
+#define TA_LOCK(t) EnterCriticalSection(t)
+#endif
+
+#if defined(USE_POSIX)
+#define TA_UNLOCK(t) pthread_mutex_unlock(t)
+#elif defined(_WIN32)
+#define TA_UNLOCK(t) LeaveCriticalSection(t)
+#endif
 
 const char TA_DATA_KEY_TIME[] = "#time";
 const char TA_DATA_KEY_IP[] = "#ip";
@@ -45,10 +50,6 @@ const char TA_DATA_FIRST_CHECK_ID[] = "#first_check_id";
 const char TA_DATA_KEY_LIB[] = "#lib";
 const char TA_DATA_KEY_LIB_VERSION[] = "#lib_version";
 
-const char TA_CONFIG_ROTATE_MODE[] = "rotate_mode";
-const char TA_CONFIG_FILE_SIZE[] = "file_size";
-const char TA_CONFIG_FILE_PATH[] = "file_path";
-const char TA_CONFIG_FILE_PREFIX[] = "file_prefix";
 const char TA_CONFIG_LOG[] = "log";
 
 typedef enum trackingType {
@@ -84,6 +85,14 @@ exit(TA_MALLOC_ERROR);                     \
 
 void *ta_safe_malloc(unsigned long n, unsigned long line) {
     void *ptr = malloc(n);
+    if (ptr == NULL) {
+        out_of_memory(line, n);
+    }
+    return ptr;
+}
+
+void *ta_safe_realloc(void *p, unsigned long n, unsigned long line) {
+    void *ptr = realloc(p, n);
     if (ptr == NULL) {
         out_of_memory(line, n);
     }
@@ -222,198 +231,6 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
     return TA_OK;
 }
 
-typedef struct {
-    int file_size;
-    TABool log;
-    char last_file_date[512];
-    int last_file_count;
-    char file_path[1024];
-    char file_prefix[64];
-    TARotateMode rotate_mode;
-    FILE *file;
-} TALoggingConsumerInter;
-
-static int ta_logging_consumer_flush(void *this_) {
-    TALoggingConsumerInter *inter = (TALoggingConsumerInter *) this_;
-    if (NULL != inter->file && 0 == fflush(inter->file)) {
-        return TA_OK;
-    }
-    return TA_IO_ERROR;
-}
-
-static int ta_logging_consumer_close(void *this_) {
-    TALoggingConsumerInter *inter;
-
-    if (NULL == this_) {
-        return TA_INVALID_PARAMETER_ERROR;
-    }
-
-    inter = (TALoggingConsumerInter *) this_;
-    if (NULL != inter->file) {
-        fflush(inter->file);
-        fclose(inter->file);
-        inter->file = NULL;
-        inter->last_file_count = 0;
-    }
-
-    return TA_OK;
-}
-
-static TABool file_size(char *file_name, int file_size) {
-    struct stat buffer;
-    long size;
-
-    stat(file_name, &buffer);
-    size = buffer.st_size / (1024 * 1024);
-    if (size >= file_size) {
-        return TA_TRUE;
-    } else {
-        return TA_FALSE;
-    }
-}
-
-static int ta_logging_consumer_add(void *this_, const char *event, unsigned long length) {
-    TALoggingConsumerInter *inter;
-    struct tm tm;
-    time_t t;
-    char *file_prefix = NULL, *file_name_date = NULL;
-    size_t prefixLength;
-    int count = 0;
-    TABool need_new_file = TA_FALSE;
-
-    if (NULL == this_ || NULL == event) {
-        return TA_INVALID_PARAMETER_ERROR;
-    }
-
-    inter = (TALoggingConsumerInter *) this_;
-    t = time(NULL);
-    LOCALTIME(&t, &tm);
-    prefixLength = strlen(inter->file_prefix);
-    if (prefixLength > 0) {
-        file_prefix = (char *) malloc(prefixLength + 4 + 1);
-        strcpy(file_prefix, inter->file_prefix);
-        strcat(file_prefix, ".log");
-    } else {
-        file_prefix = (char *) malloc(3 + 1);
-        strcpy(file_prefix, "log");
-    }
-
-    file_name_date = TA_SAFE_MALLOC(512);
-    if (inter->rotate_mode == DAILY) {
-        snprintf(file_name_date, 512, "%s.%4d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-    } else {
-        snprintf(file_name_date, 512, "%s.%4d-%02d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1,
-                 tm.tm_mday, tm.tm_hour);
-    }
-    TA_SAFE_FREE(file_prefix);
-
-    if (strcmp(inter->last_file_date, file_name_date) == 0) {
-        if (inter->file_size > 0) {
-            long size;
-            count = inter->last_file_count;
-            fseek(inter->file, 0, SEEK_END);
-            size = ftell(inter->file) / (1024 * 1024);
-            if (size >= inter->file_size) {
-                count++;
-                need_new_file = TA_TRUE;
-            }
-        } else {
-            need_new_file = TA_FALSE;
-        }
-    } else {
-        need_new_file = TA_TRUE;
-        snprintf(inter->last_file_date, 512, "%s", file_name_date);
-    }
-
-    if (need_new_file == TA_TRUE) {
-        FILE *file = NULL;
-        unsigned int times = 0;
-        char *file_path = TA_SAFE_MALLOC(1024);
-        ta_logging_consumer_close(this_);
-        snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
-
-        if (inter->file_size > 0) {
-            while (file_exists(file_path) == 0 && file_size(file_path, inter->file_size)) {
-                count++;
-                snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
-            }
-        }
-
-        while ((file = fopen(file_path, "a")) == NULL && times++ < 10) {
-            fprintf(stderr, "Fail to open file %s: %s", file_path, strerror(errno));
-            snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, ++count);
-        }
-        inter->last_file_count = count;
-        inter->file = file;
-        TA_SAFE_FREE(file_path);
-    }
-
-    fwrite(event, length, 1, inter->file);
-    fwrite("\n", 1, 1, inter->file);
-    fflush(inter->file);
-
-    TA_SAFE_FREE(file_name_date);
-    return TA_OK;
-}
-
-static void get_config_param(TALoggingConsumerInter *inter, const TAConfig *config) {
-    TAListNode *curr = config->value.child;
-    while (NULL != curr) {
-        if (NULL != curr->value->key) {
-            if (0 == strncmp(TA_CONFIG_ROTATE_MODE, curr->value->key, 256)) {
-                TANode *rotate_node = curr->value;
-                if (NULL != rotate_node) {
-                    inter->rotate_mode = (TARotateMode) rotate_node->value.int_;
-                }
-            } else if (0 == strncmp(TA_CONFIG_FILE_SIZE, curr->value->key, 256)) {
-                TANode *file_size_node = curr->value;
-                if (NULL != file_size_node) {
-                    inter->file_size = (int) file_size_node->value.int_;
-                }
-            } else if (0 == strncmp(TA_CONFIG_FILE_PATH, curr->value->key, 256)) {
-                TANode *file_path_node = curr->value;
-                if (NULL != file_path_node) {
-                    if (file_exists(file_path_node->value.string_) != 0) {
-                        mkdirs(file_path_node->value.string_);
-                    }
-                    snprintf(inter->file_path, 1024, "%s", file_path_node->value.string_);
-                }
-            } else if (0 == strncmp(TA_CONFIG_FILE_PREFIX, curr->value->key, 256)) {
-                TANode *file_prefix = curr->value;
-                if (NULL != file_prefix) {
-                    snprintf(inter->file_prefix, 64, "%s", file_prefix->value.string_);
-                }
-            } else if (0 == strncmp(TA_CONFIG_LOG, curr->value->key, 256)) {
-                TANode *log_node = curr->value;
-                if (NULL != log_node) {
-                    inter->log = log_node->value.boolean_;
-                }
-            }
-        }
-        curr = curr->next;
-    }
-}
-
-int ta_init_logging_consumer(TALoggingConsumer **ta, const TAConfig *config) {
-    TALoggingConsumerInter *inter = (TALoggingConsumerInter *) TA_SAFE_MALLOC(sizeof(TALoggingConsumerInter));
-    memset(inter, 0, sizeof(TALoggingConsumerInter));
-
-    inter->last_file_count = 0;
-    if (config != NULL) {
-        get_config_param(inter, config);
-    }
-
-    *ta = (TALoggingConsumer *) TA_SAFE_MALLOC(sizeof(TALoggingConsumer));
-    memset(*ta, 0, sizeof(TALoggingConsumer));
-
-    (*ta)->this_ = (void *) inter;
-    (*ta)->op.add = &ta_logging_consumer_add;
-    (*ta)->op.flush = &ta_logging_consumer_flush;
-    (*ta)->op.close = &ta_logging_consumer_close;
-
-    return TA_OK;
-}
-
 struct ThinkingdataAnalytics {
     TAProperties *super_properties;
     ta_dynamic_func dynamic_properties;
@@ -463,7 +280,7 @@ int ta_init(struct TAConsumer *consumer, ThinkingdataAnalytics **tracker) {
     return TA_OK;
 }
 
-void ta_consumer_free(TALoggingConsumer *cosumer) {
+void ta_consumer_free(struct TAConsumer *cosumer) {
     if (NULL == cosumer) {
         return;
     }
@@ -479,6 +296,10 @@ void ta_free(ThinkingdataAnalytics *ta) {
 
     ta_free_properties(ta->super_properties);
 
+    TA_LOCK(&ta->mutex);
+    ta->consumer->op.close(ta->consumer->this_);
+    TA_UNLOCK(&ta->mutex);
+
 #if defined(USE_POSIX)
     pthread_mutex_destroy(&(ta->mutex));
     regfree(&(ta->regex));
@@ -487,13 +308,15 @@ void ta_free(ThinkingdataAnalytics *ta) {
     pcre_free(ta->regex);
 #endif
 
-    ta->consumer->op.close(ta->consumer->this_);
+
 
     TA_SAFE_FREE(ta);
 }
 
 void ta_flush(ThinkingdataAnalytics *ta) {
+    TA_LOCK(&ta->mutex);
     ta->consumer->op.flush(ta->consumer->this_);
+    TA_UNLOCK(&ta->mutex);
 }
 
 int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytics *ta) {
@@ -503,53 +326,29 @@ int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytic
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-#if defined(USE_POSIX)
-    pthread_mutex_lock(&ta->mutex);
-#elif defined(_WIN32)
-    EnterCriticalSection(&ta->mutex);
-#endif
+    TA_LOCK(&ta->mutex);
     curr = properties->value.child;
     while (NULL != curr) {
         ta_add_node_copy(curr->value, ta->super_properties);
         curr = curr->next;
     }
-#if defined(USE_POSIX)
-    pthread_mutex_unlock(&ta->mutex);
-#elif defined(_WIN32)
-    LeaveCriticalSection(&ta->mutex);
-#endif
+    TA_UNLOCK(&ta->mutex);
 
     return TA_OK;
 }
 
 int ta_unset_super_properties(const char *key, ThinkingdataAnalytics *ta) {
-#if defined(USE_POSIX)
-    pthread_mutex_lock(&ta->mutex);
-#elif defined(_WIN32)
-    EnterCriticalSection(&ta->mutex);
-#endif
+    TA_LOCK(&ta->mutex);
     ta_delete_node(key, ta->super_properties);
-#if defined(USE_POSIX)
-    pthread_mutex_unlock(&ta->mutex);
-#elif defined(_WIN32)
-    LeaveCriticalSection(&ta->mutex);
-#endif
+    TA_UNLOCK(&ta->mutex);
     return TA_OK;
 }
 
 int ta_clear_super_properties(ThinkingdataAnalytics *ta) {
-#if defined(USE_POSIX)
-    pthread_mutex_lock(&ta->mutex);
-#elif defined(_WIN32)
-    EnterCriticalSection(&ta->mutex);
-#endif
+    TA_LOCK(&ta->mutex);
     ta_remove_node(ta->super_properties);
     ta->super_properties->value.child = NULL;
-#if defined(USE_POSIX)
-    pthread_mutex_unlock(&ta->mutex);
-#elif defined(_WIN32)
-    LeaveCriticalSection(&ta->mutex);
-#endif
+    TA_UNLOCK(&ta->mutex);
     return TA_OK;
 }
 
@@ -706,7 +505,6 @@ static int ta_internal_track(const char *account_id,
     TANode *final_properties;
     TAListNode *curr;
     char *log_str;
-    TALoggingConsumerInter *inter;
 
     if (TA_OK != (res = ta_check_parameter(account_id, distinct_id, type, event, properties, ta))) {
         return res;
@@ -760,11 +558,7 @@ static int ta_internal_track(const char *account_id,
             ta_add_string(TA_DATA_KEY_EVENT_ID, event_id, (int) strlen(event_id), data);
         }
 
-#if defined(USE_POSIX)
-        pthread_mutex_lock(&ta->mutex);
-#elif defined(_WIN32)
-        EnterCriticalSection(&ta->mutex);
-#endif
+        TA_LOCK(&ta->mutex);
         curr = ta->super_properties->value.child;
         while (NULL != curr) {
             ta_add_node_copy(curr->value, final_properties);
@@ -780,11 +574,7 @@ static int ta_internal_track(const char *account_id,
             }
             ta_free_node(dynamic);
         }
-#if defined(USE_POSIX)
-        pthread_mutex_unlock(&ta->mutex);
-#elif defined(_WIN32)
-        LeaveCriticalSection(&ta->mutex);
-#endif
+        TA_UNLOCK(&ta->mutex);
     }
 
     if (NULL != properties) {
@@ -796,24 +586,9 @@ static int ta_internal_track(const char *account_id,
     ta_add_node(final_properties, data);
     log_str = print_node(data, 0);
 
-    inter = (TALoggingConsumerInter *) ta->consumer->this_;
-    if (inter->log) {
-        ta_debug("[ThinkingSDK] data:%s\n", log_str);
-    }
-
-#if defined(USE_POSIX)
-    pthread_mutex_lock(&ta->mutex);
-#elif defined(_WIN32)
-    EnterCriticalSection(&ta->mutex);
-#endif
-
-    res = ta->consumer->op.add(inter, log_str, strlen(log_str));
-
-#if defined(USE_POSIX)
-    pthread_mutex_unlock(&ta->mutex);
-#elif defined(_WIN32)
-    LeaveCriticalSection(&ta->mutex);
-#endif
+    TA_LOCK(&ta->mutex);
+    res = ta->consumer->op.add(ta->consumer->this_, log_str, strlen(log_str));
+    TA_UNLOCK(&ta->mutex);
 
     TA_SAFE_FREE(log_str);
     ta_free_node(data);
