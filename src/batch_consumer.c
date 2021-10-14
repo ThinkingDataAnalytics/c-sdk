@@ -31,7 +31,7 @@ typedef struct {
     TABool log;
     int timeout;
     int max_cache_size;
-    char appid[32];
+    char appid[50];
     char push_url[1024];
     TADataList data_list;
     TAData *current_data;
@@ -176,7 +176,7 @@ static void get_config_param_of_batch(TABatchConsumerInter *inter, const TAConfi
             } else if (0 == strncmp(TA_CONFIG_APPID, curr->value->key, 256)) {
                 TANode *appid_node = curr->value;
                 if (NULL != appid_node) {
-                    snprintf(inter->appid, 32, "%s", appid_node->value.string_);
+                    snprintf(inter->appid, 50, "%s", appid_node->value.string_);
                 }
             } else if (0 == strncmp(TA_CONFIG_BATCH_SIZE, curr->value->key, 256)) {
                 TANode *batch_size_node = curr->value;
