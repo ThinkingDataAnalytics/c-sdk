@@ -31,7 +31,7 @@ typedef enum {
 
 /* TA_ASSERT */
 #define TA_ASSERT(condition) do { \
-TABool cond = (condition); \
+int cond = (int)(condition); \
 if (!cond) { \
 printf("condition:%d\n", cond); \
 abort(); \
