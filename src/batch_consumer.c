@@ -103,14 +103,19 @@ static int ta_batch_consumer_flush(void *this_) {
 
 static int ta_batch_consumer_close(void *this_) {
     TABatchConsumerInter *inter;
+    int retryCount = 0;
 
     if (NULL == this_) {
         return TA_INVALID_PARAMETER_ERROR;
     }
 
     inter = (TABatchConsumerInter *) this_;
-    while (inter->data_list.size > 0 && inter->current_data->size > 0) {
-        ta_batch_consumer_flush(inter);
+    while (inter->data_list.size > 0 && inter->current_data->size > 0 && retryCount < 50) {
+        if (TA_OK == ta_batch_consumer_flush(inter)) {
+            retryCount = 0;
+        } else {
+            retryCount++;
+        }
     }
 
     return TA_OK;
