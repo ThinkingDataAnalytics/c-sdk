@@ -6,13 +6,15 @@
 #### Debug build
 ```shell
 mkdir cmake-build-debug
-cmake -DCMAKE_BUILD_TYPE=Debug cmake-build-debug
+cd cmake-build-debug
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
 #### Release build
 ```shell
 mkdir cmake-build-release
-cmake -DCMAKE_BUILD_TYPE=Release cmake-build-release
+cd cmake-build-release
+cmake -DCMAKE_BUILD_TYPE=Release ..
 ```
 
 ### API描述
