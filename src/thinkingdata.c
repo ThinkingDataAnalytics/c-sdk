@@ -80,7 +80,6 @@ static void ta_type_names(char *types[]) {
 
 #define out_of_memory(l, n) do {                    \
 fprintf(stderr, "[%ld] Out of memory(%lu bytes).\n", l, (unsigned long)n);    \
-exit(TA_MALLOC_ERROR);                     \
 } while (0)
 
 void *ta_safe_malloc(unsigned long n, unsigned long line) {
@@ -129,7 +128,12 @@ int ta_add_bool(const char *key, TABool bool_, TAProperties *properties) {
 
     value.boolean_ = bool_;
     node_new = creat_new_node(TA_Boolean, key, &value);
-    ta_add_node(node_new, properties);
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    if (ta_add_node(node_new, properties) == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     return TA_OK;
 }
 
@@ -144,7 +148,12 @@ int ta_add_number(const char *key, double number_, TAProperties *properties) {
 
     value.number_ = number_;
     node_new = creat_new_node(TA_NUMBER, key, &value);
-    ta_add_node(node_new, properties);
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    if (ta_add_node(node_new, properties) == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     return TA_OK;
 }
 
@@ -158,7 +167,12 @@ int ta_add_int(const char *key, long long int_, TAProperties *properties) {
     }
     value.int_ = int_;
     node_new = creat_new_node(TA_INT, key, &value);
-    ta_add_node(node_new, properties);
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    if (ta_add_node(node_new, properties) == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     return TA_OK;
 }
 
@@ -174,24 +188,39 @@ int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties 
     value.date_.seconds = seconds;
     value.date_.microseconds = microseconds;
     node_new = creat_new_node(TA_DATE, key, &value);
-    ta_add_node(node_new, properties);
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    if (ta_add_node(node_new, properties) == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     return TA_OK;
 }
 
 int ta_add_string(const char *key, const char *string_, unsigned int length, TAProperties *properties) {
     TANodeValue value;
     TANode *node_new;
+    char *value_string;
 
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    value.string_ = (char *) TA_SAFE_MALLOC(length + 1);
+    value_string = (char *) TA_SAFE_MALLOC(length + 1);
+    if (value_string == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    value.string_ = value_string;
     memcpy(value.string_, string_, length);
     value.string_[length] = 0;
     node_new = creat_new_node(TA_STRING, key, &value);
-    ta_add_node(node_new, properties);
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    if (ta_add_node(node_new, properties) == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     return TA_OK;
 }
 
@@ -199,6 +228,7 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
     TANode *list;
     TANodeValue value;
     TANode *node_new;
+    char *value_string;
 
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
@@ -208,14 +238,18 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
     list = ta_find_node(key, properties);
     if (NULL == list) {
         list = ta_init_array_node(key);
-        list->type = TA_ARRAY;
-        if (NULL == list) {
+        if (list == NULL) {
             return TA_MALLOC_ERROR;
         }
+        list->type = TA_ARRAY;
         ta_add_node(list, properties);
     }
 
-    value.string_ = (char *) TA_SAFE_MALLOC(length + 1);
+    value_string = (char *) TA_SAFE_MALLOC(length + 1);
+    if (value_string == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    value.string_ = value_string;
     memcpy(value.string_, string_, length);
     value.string_[length] = 0;
     node_new = creat_new_node(TA_STRING, NULL, &value);
@@ -246,20 +280,29 @@ struct ThinkingdataAnalytics {
 };
 
 int ta_init(struct TAConsumer *consumer, ThinkingdataAnalytics **tracker) {
-    *tracker = (ThinkingdataAnalytics *) TA_SAFE_MALLOC(sizeof(ThinkingdataAnalytics));
-    memset(*tracker, 0, sizeof(ThinkingdataAnalytics));
+    TAProperties *properties;
+    ThinkingdataAnalytics *thinkingdataAnalytics;
+    thinkingdataAnalytics = (ThinkingdataAnalytics *) TA_SAFE_MALLOC(sizeof(ThinkingdataAnalytics));
+    if (thinkingdataAnalytics == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    memset(thinkingdataAnalytics, 0, sizeof(ThinkingdataAnalytics));
 
-    (*tracker)->consumer = consumer;
-    (*tracker)->super_properties = ta_init_properties();
-    ta_type_names((*tracker)->event_types);
+    thinkingdataAnalytics->consumer = consumer;
+    properties = ta_init_properties();
+    if (properties == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    thinkingdataAnalytics->super_properties = properties;
+    ta_type_names(thinkingdataAnalytics->event_types);
 
 #if defined(USE_POSIX)
-    if (pthread_mutex_init(&((*tracker)->mutex), NULL) != 0) {
+    if (pthread_mutex_init(&(thinkingdataAnalytics->mutex), NULL) != 0) {
         fprintf(stderr, "Initialize mutex error.");
         return TA_MALLOC_ERROR;
     }
 
-    if (0 != regcomp(&((*tracker)->regex), NAME_PATTERN, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
+    if (0 != regcomp(&(thinkingdataAnalytics->regex), NAME_PATTERN, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
         fprintf(stderr, "Compile regex error.");
         return TA_MALLOC_ERROR;
     }
@@ -268,15 +311,15 @@ int ta_init(struct TAConsumer *consumer, ThinkingdataAnalytics **tracker) {
         const char *error_message = NULL;
         int offset = -1;
 
-        InitializeCriticalSection(&((*tracker)->mutex));
+        InitializeCriticalSection(&(thinkingdataAnalytics->mutex));
 
-        if (NULL == ((*tracker)->regex = pcre_compile(NAME_PATTERN, PCRE_EXTENDED | PCRE_CASELESS, &error_message, &offset, NULL))) {
+        if (NULL == (thinkingdataAnalytics->regex = pcre_compile(NAME_PATTERN, PCRE_EXTENDED | PCRE_CASELESS, &error_message, &offset, NULL))) {
             fprintf(stderr, "Compile regex error. ErrMsg:%s, Offset:%d", error_message, offset);
             return TA_MALLOC_ERROR;
         }
     }
 #endif
-
+    *tracker = thinkingdataAnalytics;
     return TA_OK;
 }
 
@@ -307,7 +350,6 @@ void ta_free(ThinkingdataAnalytics *ta) {
     DeleteCriticalSection(&(ta->mutex));
     pcre_free(ta->regex);
 #endif
-
 
 
     TA_SAFE_FREE(ta);
@@ -427,7 +469,8 @@ static int ta_check_parameter(const char *account_id,
 #else
                 || TA_OK != ta_assert_key_name(curr->value->key)) {
 #endif
-                fprintf(stderr, "Invalid property name [%s].\n", NULL == curr->value->key ? "NULL" : curr->value->key);
+                fprintf(stderr, "Invalid property name [%s].\n",
+                        NULL == curr->value->key ? "NULL" : curr->value->key);
                 return TA_INVALID_PARAMETER_ERROR;
             }
             if (type == TA_USER_ADD) {
@@ -450,6 +493,9 @@ static int analysis_properties(const struct TANode *properties, TANode *data, TA
             TANode *time_node = curr->value;
             if (NULL != time_node) {
                 char *buf = convert_time_to_string(time_node);
+                if (buf == NULL) {
+                    return TA_MALLOC_ERROR;
+                }
                 if (TA_OK != (res = ta_add_string(TA_DATA_KEY_TIME, buf, 64, data))) {
                     TA_SAFE_FREE(buf);
                     return res;
@@ -461,7 +507,8 @@ static int analysis_properties(const struct TANode *properties, TANode *data, TA
             TANode *ip_node = curr->value;
             if (NULL != ip_node) {
                 if (TA_OK !=
-                    (res = ta_add_string(TA_DATA_KEY_IP, ip_node->value.string_, (int) strlen(ip_node->value.string_),
+                    (res = ta_add_string(TA_DATA_KEY_IP, ip_node->value.string_,
+                                         (int) strlen(ip_node->value.string_),
                                          data))) {
                     return res;
                 }
@@ -511,7 +558,13 @@ static int ta_internal_track(const char *account_id,
     }
 
     data = ta_init_dict_node("data");
-    TA_ASSERT(NULL != ta);
+    if (NULL == data) {
+        return TA_MALLOC_ERROR;
+    }
+    if (NULL == ta) {
+        return TA_INVALID_PARAMETER_ERROR;
+    }
+
     event_type = ta->event_types[type];
     if (TA_OK != (res = ta_add_string(TA_DATA_KEY_TYPE, event_type, (int) strlen(event_type), data))) {
         return res;
@@ -549,6 +602,9 @@ static int ta_internal_track(const char *account_id,
     }
 
     final_properties = ta_init_dict_node("properties");
+    if (final_properties == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     if (type == TA_TRACK || type == TA_TRACK_UPDATE || type == TA_TRACK_OVERWRITE) {
         ta_add_string(TA_DATA_KEY_EVENT_NAME, event, (int) strlen(event), data);
         ta_add_string(TA_DATA_KEY_LIB, TA_LIB, strlen(TA_LIB), final_properties);
@@ -585,6 +641,9 @@ static int ta_internal_track(const char *account_id,
 
     ta_add_node(final_properties, data);
     log_str = print_node(data, 0);
+    if (!log_str) {
+        return TA_MALLOC_ERROR;
+    }
 
     TA_LOCK(&ta->mutex);
     res = ta->consumer->op.add(ta->consumer->this_, log_str, strlen(log_str));
@@ -689,6 +748,9 @@ int ta_user_unset(const char *account_id,
                   ThinkingdataAnalytics *ta) {
     int res = TA_OK;
     TAProperties *properties = ta_init_properties();
+    if (properties == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     TA_ASSERT(TA_OK == ta_add_int(propertyName, 0, properties));
     res = ta_user_track(account_id,
                         distinct_id,
@@ -747,6 +809,9 @@ int ta_user_del(const char *account_id,
     int res = TA_OK;
 
     TAProperties *properties = ta_init_properties();
+    if (properties == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     res = ta_user_track(account_id,
                         distinct_id,
                         TA_USER_DEL,

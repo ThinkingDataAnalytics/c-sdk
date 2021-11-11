@@ -18,8 +18,8 @@ char *print_string(const char *str) {
             len += 5;
         ptr++;
     }
-    
-    out = (char *)TA_SAFE_MALLOC(len + 3);
+
+    out = (char *) TA_SAFE_MALLOC(len + 3);
     if (!out)
         return 0;
 
@@ -27,7 +27,7 @@ char *print_string(const char *str) {
     ptr = str;
     *ptr2++ = '\"';
     while (*ptr) {
-        if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') {
+        if ((unsigned char) *ptr > 31 && *ptr != '\"' && *ptr != '\\') {
             *ptr2++ = *ptr++;
         } else {
             *ptr2++ = '\\';
@@ -67,22 +67,22 @@ char *print_string(const char *str) {
 
 static char *print_array(const struct TANode *node, int depth) {
     char **entries = 0;
-    char *out = 0, *ptr , *ret;
+    char *out = 0, *ptr, *ret;
     int len = 5;
     struct TAListNode *child = node->value.child;
     int numentries = 0, i = 0, fail = 0;
-    
+
     while (child) {
         numentries++;
         child = child->next;
     }
-    
-    entries = (char**)TA_SAFE_MALLOC(numentries * sizeof(char *));
+
+    entries = (char **) TA_SAFE_MALLOC(numentries * sizeof(char *));
     if (!entries)
         return 0;
-    
-    memset(entries,0,numentries*sizeof(char*));
-    
+
+    memset(entries, 0, numentries * sizeof(char *));
+
     child = node->value.child;
     while (child && !fail) {
         entries[i++] = ret = print_node(child->value, depth);
@@ -92,25 +92,25 @@ static char *print_array(const struct TANode *node, int depth) {
             fail = 1;
         child = child->next;
     }
-    
+
     if (!fail)
-        out = (char *)TA_SAFE_MALLOC(len);
+        out = (char *) TA_SAFE_MALLOC(len);
     if (!out)
         fail = 1;
 
     if (fail) {
-        for (i = 0 ; i < numentries ; i++) {
+        for (i = 0; i < numentries; i++) {
             if (entries[i])
                 TA_SAFE_FREE(entries[i]);
         }
         TA_SAFE_FREE(entries);
         return 0;
     }
-    
+
     *out = '[';
     ptr = out + 1;
     *ptr = 0;
-    for (i = 0 ; i < numentries ; i++) {
+    for (i = 0; i < numentries; i++) {
         strcpy(ptr, entries[i]);
         ptr += strlen(entries[i]);
         if (i != numentries - 1) {
@@ -135,15 +135,15 @@ char *print_object(const struct TANode *node, int depth) {
         numentries++;
         child = child->next;
     }
-    entries = (char**)TA_SAFE_MALLOC(numentries * sizeof(char *));
+    entries = (char **) TA_SAFE_MALLOC(numentries * sizeof(char *));
     if (!entries)
         return 0;
-    names = (char**)TA_SAFE_MALLOC(numentries * sizeof(char *));
+    names = (char **) TA_SAFE_MALLOC(numentries * sizeof(char *));
     if (!names) {
         TA_SAFE_FREE(entries);
         return 0;
     }
-    
+
     memset(entries, 0, sizeof(char *) * numentries);
     memset(names, 0, sizeof(char *) * numentries);
 
@@ -158,14 +158,14 @@ char *print_object(const struct TANode *node, int depth) {
             fail = 1;
         child = child->next;
     }
-    
+
     if (!fail)
-        out = (char *)TA_SAFE_MALLOC(len);
+        out = (char *) TA_SAFE_MALLOC(len);
     if (!out)
         fail = 1;
 
     if (fail) {
-        for (i = 0 ; i < numentries ; i++) {
+        for (i = 0; i < numentries; i++) {
             if (names[i])
                 TA_SAFE_FREE(names[i]);
             if (entries[i])
@@ -175,10 +175,10 @@ char *print_object(const struct TANode *node, int depth) {
         TA_SAFE_FREE(entries);
         return 0;
     }
-    
+
     *out = '{';
     ptr = out + 1;
-    for (i = 0 ; i < numentries ; i++) {
+    for (i = 0; i < numentries; i++) {
         strcpy(ptr, names[i]);
         ptr += strlen(names[i]);
         *ptr++ = ':';
@@ -189,12 +189,12 @@ char *print_object(const struct TANode *node, int depth) {
         TA_SAFE_FREE(names[i]);
         TA_SAFE_FREE(entries[i]);
     }
-    
+
     TA_SAFE_FREE(names);
     TA_SAFE_FREE(entries);
     *ptr++ = '}';
     *ptr++ = 0;
-    
+
     return out;
 }
 
@@ -204,20 +204,31 @@ char *print_node(const struct TANode *node, int depth) {
     if (NULL == node) {
         return NULL;
     }
-    
-    switch(node->type) {
+
+    switch (node->type) {
         case TA_NUMBER:
             out = TA_SAFE_MALLOC(64);
+            if (out == NULL) {
+                return NULL;
+            }
             snprintf(out, 64, "%.3f", value_get_number(node));
             break;
         case TA_INT:
             out = TA_SAFE_MALLOC(64);
+            if (out == NULL) {
+                return NULL;
+            }
             snprintf(out, 64, "%lld", value_get_int(node));
             break;
-        case TA_DATE:
-        {
+        case TA_DATE: {
             char *time = convert_time_to_string(node);
-            out = (char *)TA_SAFE_MALLOC(64);
+            if (time == NULL) {
+                return NULL;
+            }
+            out = (char *) TA_SAFE_MALLOC(64);
+            if (out == NULL) {
+                return NULL;
+            }
             snprintf(out, 64, "\"%s\"", time);
             TA_SAFE_FREE(time);
         }
@@ -241,6 +252,6 @@ char *print_node(const struct TANode *node, int depth) {
         default:
             return NULL;
     }
-    
+
     return out;
 }

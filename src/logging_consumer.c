@@ -90,6 +90,9 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
     }
 
     file_name_date = TA_SAFE_MALLOC(512);
+    if (file_name_date == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     if (inter->rotate_mode == DAILY) {
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
     } else {
@@ -120,6 +123,9 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
         FILE *file = NULL;
         unsigned int times = 0;
         char *file_path = TA_SAFE_MALLOC(1024);
+        if (file_path == NULL) {
+            return TA_MALLOC_ERROR;
+        }
         ta_logging_consumer_close(this_);
         snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
 
@@ -186,7 +192,11 @@ static void get_config_param(TALoggingConsumerInter *inter, const TAConfig *conf
 }
 
 int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
+    struct TAConsumer *ta_consumer;
     TALoggingConsumerInter *inter = (TALoggingConsumerInter *) TA_SAFE_MALLOC(sizeof(TALoggingConsumerInter));
+    if (inter == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     memset(inter, 0, sizeof(TALoggingConsumerInter));
 
     inter->last_file_count = 0;
@@ -194,13 +204,18 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
         get_config_param(inter, config);
     }
 
-    *ta = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
-    memset(*ta, 0, sizeof(struct TAConsumer));
+    ta_consumer = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
+    if (ta_consumer == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    memset(ta_consumer, 0, sizeof(struct TAConsumer));
 
-    (*ta)->this_ = (void *) inter;
-    (*ta)->op.add = &ta_logging_consumer_add;
-    (*ta)->op.flush = &ta_logging_consumer_flush;
-    (*ta)->op.close = &ta_logging_consumer_close;
+    ta_consumer->this_ = (void *) inter;
+    ta_consumer->op.add = &ta_logging_consumer_add;
+    ta_consumer->op.flush = &ta_logging_consumer_flush;
+    ta_consumer->op.close = &ta_logging_consumer_close;
+
+    *ta = ta_consumer;
 
     return TA_OK;
 }

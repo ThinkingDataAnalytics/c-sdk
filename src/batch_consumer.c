@@ -55,6 +55,7 @@ static void remove_head(TADataList *data_list) {
 static int ta_batch_consumer_flush(void *this_) {
     TABatchConsumerInter *inter = (TABatchConsumerInter *) this_;
     HttpResponse *response;
+    char *current_data_;
     TADataList *data_list = &inter->data_list;
     TAData *current_data = inter->current_data;
     if ((current_data != NULL && current_data->size >= inter->batch_size) || data_list->size <= 0) {
@@ -62,7 +63,12 @@ static int ta_batch_consumer_flush(void *this_) {
             return TA_OK;
         }
 
-        current_data->data = (char *) TA_SAFE_REALLOC(current_data->data, current_data->body_size + 2);
+        current_data_ = (char *) TA_SAFE_REALLOC(current_data->data, current_data->body_size + 2);
+        if (current_data_ == NULL) {
+            return TA_MALLOC_ERROR;
+        }
+        current_data->data = current_data_;
+
         memcpy(current_data->data + current_data->body_size, "]", 1);
         current_data->body_size++;
         current_data->data[current_data->body_size] = '\0';
@@ -123,14 +129,22 @@ static int ta_batch_consumer_close(void *this_) {
 
 static int add_to_list(TABatchConsumerInter *inter, const char *event, unsigned long length) {
     TAData *current_data;
+    char *data;
 
     if (inter->current_data == NULL) {
         inter->current_data = (TAData *) TA_SAFE_MALLOC(sizeof(TAData));
+        if (inter->current_data == NULL) {
+            return -1;
+        }
         memset(inter->current_data, 0, sizeof(TAData));
     }
 
     current_data = inter->current_data;
-    current_data->data = (char *) TA_SAFE_REALLOC(current_data->data, current_data->body_size + length + 2);
+    data = (char *) TA_SAFE_REALLOC(current_data->data, current_data->body_size + length + 2);
+    if (data == NULL) {
+        return -1;
+    }
+    current_data->data = data;
 
     if (current_data->size == 0) {
         memcpy(current_data->data + current_data->body_size, "[", 1);
@@ -157,6 +171,9 @@ static int ta_batch_consumer_add(void *this_, const char *event, unsigned long l
 
     inter = (TABatchConsumerInter *) this_;
     count = add_to_list(inter, event, length);
+    if (count == -1) {
+        return TA_MALLOC_ERROR;
+    }
     if (count >= inter->batch_size) {
         ta_batch_consumer_flush(inter);
     }
@@ -210,7 +227,11 @@ static void get_config_param_of_batch(TABatchConsumerInter *inter, const TAConfi
 }
 
 int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
+    struct TAConsumer *consumer;
     TABatchConsumerInter *inter = (TABatchConsumerInter *) TA_SAFE_MALLOC(sizeof(TABatchConsumerInter));
+    if (inter == NULL) {
+        return TA_MALLOC_ERROR;
+    }
     memset(inter, 0, sizeof(TABatchConsumerInter));
 
     inter->batch_size = 20;
@@ -221,13 +242,17 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
         get_config_param_of_batch(inter, config);
     }
 
-    *ta = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
-    memset(*ta, 0, sizeof(struct TAConsumer));
+    consumer = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
+    if (consumer == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+    memset(consumer, 0, sizeof(struct TAConsumer));
 
-    (*ta)->this_ = (void *) inter;
-    (*ta)->op.add = &ta_batch_consumer_add;
-    (*ta)->op.flush = &ta_batch_consumer_flush;
-    (*ta)->op.close = &ta_batch_consumer_close;
+    consumer->this_ = (void *) inter;
+    consumer->op.add = &ta_batch_consumer_add;
+    consumer->op.flush = &ta_batch_consumer_flush;
+    consumer->op.close = &ta_batch_consumer_close;
 
+    *ta = consumer;
     return TA_OK;
 }

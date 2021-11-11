@@ -11,6 +11,9 @@
 
 static HttpResponse *create_http_response() {
     HttpResponse *response = (HttpResponse *) TA_SAFE_MALLOC(sizeof(HttpResponse));
+    if (response == NULL) {
+        return NULL;
+    }
     response->body = NULL;
     response->body_size = 0;
     return response;
@@ -32,6 +35,9 @@ static size_t write_call_back(void *data, size_t size, size_t nmemb,
     size_t total_size = size * nmemb;
 
     response->body = (char *) TA_SAFE_REALLOC(response->body, response->body_size + total_size + 1);
+    if (response->body == NULL) {
+        return (size_t) 0;
+    }
 
     memcpy(response->body + response->body_size, data, total_size);
     response->body_size += total_size;
@@ -54,6 +60,9 @@ HttpResponse *ta_http_post(
     }
 
     response = create_http_response();
+    if (response == NULL) {
+        return NULL;
+    }
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);

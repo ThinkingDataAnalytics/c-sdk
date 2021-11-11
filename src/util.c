@@ -5,8 +5,11 @@
 #include <sys/types.h>
 
 char *convert_time_to_string(const TANode *time_node) {
-    char *buf = (char *) TA_SAFE_MALLOC(64);
     struct tm tm;
+    char *buf = (char *) TA_SAFE_MALLOC(64);
+    if (buf == NULL) {
+        return NULL;
+    }
     LOCALTIME(&time_node->value.date_.seconds, &tm);
     snprintf(buf, 64, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
              tm.tm_year + 1900,
@@ -28,6 +31,9 @@ char *ta_strdup(const char *str) {
 
     len = (int) strlen(str);
     new_str = (char *) TA_SAFE_MALLOC(len + 1);
+    if (new_str == NULL) {
+        return NULL;
+    }
     memcpy(new_str, str, len);
     new_str[len] = '\0';
     return new_str;

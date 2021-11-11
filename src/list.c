@@ -34,8 +34,11 @@ struct TANode *ta_find_node(const char *key, const struct TANode *parent) {
     if (parent->type != TA_DICT || NULL == key) {
         return NULL;
     }
-    
+
     it = list_iterator_new(parent->value.child);
+    if (it == NULL) {
+        return NULL;
+    }
     curr = list_iterator_next(it);
     while (NULL != curr) {
         if (NULL != curr->value->key && 0 == strncmp(curr->value->key, key, 256)) {
@@ -49,18 +52,21 @@ struct TANode *ta_find_node(const char *key, const struct TANode *parent) {
 }
 
 struct TANode *ta_malloc_node(TANodeType type, const char *key) {
-    struct TANode *node = (struct TANode*)TA_SAFE_MALLOC(sizeof(TANode));
+    struct TANode *node = (struct TANode *) TA_SAFE_MALLOC(sizeof(TANode));
+    if (node == NULL) {
+        return NULL;
+    }
     memset(node, 0, sizeof(struct TANode));
-    
+
     node->type = type;
     if (NULL != key) {
         node->key = ta_strdup(key);
     }
-    
+
     return node;
 }
 
-struct TANode *ta_init_array_node(const char* key) {
+struct TANode *ta_init_array_node(const char *key) {
     return ta_malloc_node(TA_ARRAY, key);
 }
 
@@ -70,7 +76,7 @@ struct TANode *ta_init_dict_node(const char *key) {
 
 void ta_remove_node(struct TANode *parent) {
     struct TAListNode *curr = parent->value.child;
-    
+
     while (NULL != curr) {
         struct TAListNode *next = curr->next;
         ta_free_node(curr->value);
@@ -82,7 +88,7 @@ void ta_remove_node(struct TANode *parent) {
 void ta_delete_node(const char *key, struct TANode *parent) {
     struct TAListNode *prev = NULL;
     struct TAListNode *curr = parent->value.child;
-    
+
     while (NULL != curr) {
         struct TAListNode *next = curr->next;
         if (NULL != curr->value->key && 0 == strncmp(curr->value->key, key, 256)) {
@@ -105,25 +111,39 @@ void ta_add_node_copy(struct TANode *node, struct TANode *parent) {
     struct TAListNode *new_list_node;
     TANode *node_new;
     TANodeValue *value;
+    char *value_string;
 
     if (TA_DICT == parent->type) {
         if (NULL == node->key) {
             return;
         }
-        
+
         ta_delete_node(node->key, parent);
     }
-    
-    new_list_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
+
+    new_list_node = (struct TAListNode *) TA_SAFE_MALLOC(sizeof(struct TAListNode));
+    if (new_list_node == NULL) {
+        return;
+    }
     new_list_node->next = parent->value.child;
     parent->value.child = new_list_node;
 
     node_new = ta_malloc_node(value_get_type(node), node->key);
-    value = (union TANodeValue*)TA_SAFE_MALLOC(sizeof(union TANodeValue));
-    
-    switch(node->type) {
+    if (node_new == NULL) {
+        return;
+    }
+    value = (union TANodeValue *) TA_SAFE_MALLOC(sizeof(union TANodeValue));
+    if (value == NULL) {
+        return;
+    }
+
+    switch (node->type) {
         case TA_STRING:
-            value->string_ = (char *)TA_SAFE_MALLOC(strlen(node->value.string_) + 1);
+            value_string = (char *) TA_SAFE_MALLOC(strlen(node->value.string_) + 1);
+            if (value_string == NULL) {
+                return;
+            }
+            value->string_ = value_string;
             memcpy(value->string_, node->value.string_, strlen(node->value.string_));
             value->string_[strlen(node->value.string_)] = 0;
             node_new->value = *value;
@@ -165,11 +185,14 @@ struct TAListNode *ta_add_node(struct TANode *node, struct TANode *parent) {
         if (NULL == node->key) {
             return NULL;
         }
-        
+
         ta_delete_node(node->key, parent);
     }
-    
-    new_node = (struct TAListNode*)TA_SAFE_MALLOC(sizeof(struct TAListNode));
+
+    new_node = (struct TAListNode *) TA_SAFE_MALLOC(sizeof(struct TAListNode));
+    if (new_node == NULL) {
+        return NULL;
+    }
     new_node->next = parent->value.child;
     parent->value.child = new_node;
     new_node->value = node;
@@ -180,8 +203,8 @@ void ta_destroy_node(struct TANode *node) {
     if (NULL != node->key) {
         TA_SAFE_FREE(node->key);
     }
-    
-    switch(node->type) {
+
+    switch (node->type) {
         case TA_STRING:
             TA_SAFE_FREE(node->value.string_);
             break;
@@ -207,7 +230,7 @@ int value_get_boolean(const TANode *value) {
     return value_get_type(value) == TA_Boolean ? value->value.boolean_ : -1;
 }
 
-const char  *value_get_string(const TANode *value) {
+const char *value_get_string(const TANode *value) {
     return value_get_type(value) == TA_STRING ? value->value.string_ : NULL;
 }
 
@@ -221,6 +244,9 @@ long long value_get_int(const TANode *value) {
 
 struct TANode *creat_new_node(TANodeType type, const char *key, TANodeValue *value) {
     struct TANode *node_new = ta_malloc_node(type, key);
+    if (node_new == NULL) {
+        return NULL;
+    }
     node_new->value = *value;
     return node_new;
 }
