@@ -751,7 +751,9 @@ int ta_user_unset(const char *account_id,
     if (properties == NULL) {
         return TA_MALLOC_ERROR;
     }
-    TA_ASSERT(TA_OK == ta_add_int(propertyName, 0, properties));
+    if (TA_OK != (res = ta_add_int(propertyName, 0, properties))) {
+        return res;
+    }
     res = ta_user_track(account_id,
                         distinct_id,
                         TA_USER_UNSET,
