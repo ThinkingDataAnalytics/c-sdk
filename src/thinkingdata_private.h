@@ -7,7 +7,7 @@
 
 #include <thinkingdata.h>
 
-#define TA_LIB_VERSION "1.3.1"
+#define TA_LIB_VERSION "1.3.2"
 #define TA_LIB "C"
 
 const char TA_CONFIG_LOG[];
@@ -98,8 +98,8 @@ if (0 != err) { \
 } \
 } while (0)
 #define _CRT_SECURE_NO_WARNINGS
-#if _MSC_VER
-#define snprintf _snprintf
+#if defined(_MSC_VER) && _MSC_VER < 1900
+int snprintf(char *outBuf, size_t size, const char *format, ...)
 #endif
 #endif
 

@@ -9,3 +9,5 @@ cmake-build-release
 .vs
 CMakeSettings.json
 .vscode
+debug
+release
