@@ -99,7 +99,7 @@ if (0 != err) { \
 } while (0)
 #define _CRT_SECURE_NO_WARNINGS
 #if defined(_MSC_VER) && _MSC_VER < 1900
-int snprintf(char *outBuf, size_t size, const char *format, ...)
+int snprintf(char *outBuf, size_t size, const char *format, ...);
 #endif
 #endif
 
