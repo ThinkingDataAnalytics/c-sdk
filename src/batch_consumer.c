@@ -1,7 +1,3 @@
-//
-// Created by 孙泽宇 on 2021/10/13.
-//
-
 #include <string.h>
 #include "thinkingdata_private.h"
 #include "http_client.h"

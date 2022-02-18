@@ -829,7 +829,7 @@ int ta_user_del(const char *account_id,
 #include <stdio.h>
 #include <stdarg.h>
 
-int  vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
+static int internal_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
 {
 
     int count = -1;
@@ -852,7 +852,7 @@ int snprintf(char *outBuf, size_t size, const char *format, ...)
 
     va_start(ap, format);
 
-    count = vsnprintf(outBuf, size, format, ap);
+    count = internal_vsnprintf(outBuf, size, format, ap);
 
     va_end(ap);
 
