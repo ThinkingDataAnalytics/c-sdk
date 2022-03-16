@@ -7,7 +7,7 @@
 
 #include <thinkingdata.h>
 
-#define TA_LIB_VERSION "1.3.2"
+#define TA_LIB_VERSION "1.3.4"
 #define TA_LIB "C"
 
 const char TA_CONFIG_LOG[];

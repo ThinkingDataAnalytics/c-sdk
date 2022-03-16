@@ -166,6 +166,14 @@ void ta_add_node_copy(struct TANode *node, struct TANode *parent) {
             node_new->value = *value;
             break;
     }
+    if (node->type == TA_DICT) {
+        TAListNode *curr = node->value.child;
+        while (NULL != curr) {
+            ta_add_node_copy(curr->value, node_new);
+            curr = curr->next;
+        }
+    }
+
     if (node->type == TA_ARRAY) {
         TAListNode *curr = node->value.child;
         while (NULL != curr) {

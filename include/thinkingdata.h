@@ -57,6 +57,8 @@ TAConfig *ta_init_config(void);
 
 TAProperties *ta_init_properties(void);
 
+TAProperties *ta_init_custom_properties(const char *key);
+
 void ta_free_properties(TAProperties *properties);
 
 int ta_track(const char *account_id,
@@ -119,6 +121,8 @@ int ta_add_bool(const char *key, TABool bool_, TAProperties *properties);
 
 int ta_add_number(const char *key, double number_, TAProperties *properties);
 
+int ta_add_property(TAProperties *subProperties_, TAProperties *properties);
+
 int ta_add_int(const char *key, long long int_, TAProperties *properties);
 
 int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties *properties);
@@ -126,6 +130,8 @@ int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties 
 int ta_add_string(const char *key, const char *string_, unsigned int length, TAProperties *properties);
 
 int ta_append_array(const char *key, const char *string_, unsigned int length, TAProperties *properties);
+
+int ta_append_properties(const char *key, TAProperties *json, TAProperties *properties);
 
 int ta_set_super_properties(const TAProperties *properties, ThinkingdataAnalytics *ta);
 

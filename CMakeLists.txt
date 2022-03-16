@@ -17,8 +17,8 @@ if(WIN32)
     target_link_libraries(thinkingdata pcre_x86)
 endif()
 
-#add_executable(sdk-demo demo/demo.c)
-#target_link_libraries(sdk-demo ta_sdk_http)
+add_executable(sdk-demo demo/demo.c)
+target_link_libraries(sdk-demo thinkingdata)
 
 add_library(thinkingdata_http src/thinkingdata.c src/json.c src/list.c src/util.c src/batch_consumer.c src/http_client.c)
 if(WIN32)
@@ -35,5 +35,5 @@ endif()
 add_executable(http_client_demo demo/http_client_demo.c)
 target_link_libraries(http_client_demo thinkingdata_http)
 
-add_executable(sdk-demo demo/demo.c)
-target_link_libraries(sdk-demo thinkingdata_http)
+#add_executable(sdk-demo demo/demo.c)
+#target_link_libraries(sdk-demo thinkingdata_http)

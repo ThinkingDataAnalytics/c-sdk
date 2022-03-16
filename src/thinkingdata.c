@@ -113,6 +113,10 @@ TAProperties *ta_init_properties() {
     return ta_init_dict_node("properties");
 }
 
+TAProperties *ta_init_custom_properties(const char *key) {
+    return ta_init_dict_node(key);
+}
+
 void ta_free_properties(TAProperties *properties) {
     ta_free_node(properties);
 }
@@ -176,6 +180,12 @@ int ta_add_int(const char *key, long long int_, TAProperties *properties) {
     return TA_OK;
 }
 
+
+int ta_add_property(TAProperties *subProperties_, TAProperties *properties) {
+    ta_add_node_copy(subProperties_, properties);
+    return TA_OK;
+}
+
 int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties *properties) {
     TANodeValue value;
     TANode *node_new;
@@ -221,6 +231,43 @@ int ta_add_string(const char *key, const char *string_, unsigned int length, TAP
     if (ta_add_node(node_new, properties) == NULL) {
         return TA_MALLOC_ERROR;
     }
+    return TA_OK;
+}
+
+int ta_append_properties(const char *key, TAProperties *json, TAProperties *properties) {
+    TANode *list;
+    TANode *node_new;
+    TAListNode *curr;
+
+    if (NULL == properties) {
+        fprintf(stderr, "Parameter 'properties' is NULL.");
+        return TA_INVALID_PARAMETER_ERROR;
+    }
+
+    list = ta_find_node(key, properties);
+    if (NULL == list) {
+        list = ta_init_array_node(key);
+        if (list == NULL) {
+            return TA_MALLOC_ERROR;
+        }
+        list->type = TA_ARRAY;
+        ta_add_node(list, properties);
+    }
+
+    node_new = ta_init_dict_node(json->key);
+    curr = json->value.child;
+    while (NULL != curr) {
+        ta_add_node_copy(curr->value, node_new);
+        curr = curr->next;
+    }
+
+    if (node_new == NULL) {
+        return TA_MALLOC_ERROR;
+    }
+
+    ta_add_node_copy(node_new, list);
+    TA_SAFE_FREE(node_new);
+
     return TA_OK;
 }
 
