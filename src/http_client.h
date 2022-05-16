@@ -14,6 +14,9 @@ typedef struct {
 HttpResponse *ta_http_post(
         const char *appid, const char *url, const char *data, int data_size, size_t data_length, int timeout_seconds);
 
+HttpResponse *ta_debug_http_post(
+        const char *appid, const char *url, const char *data, int data_size, size_t data_length, int timeout_seconds, int dryRun);
+
 void destroy_http_response(HttpResponse *response);
 
 #endif //TA_C_SDK_HTTP_CLIENT_H

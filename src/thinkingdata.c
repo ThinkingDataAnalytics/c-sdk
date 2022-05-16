@@ -62,6 +62,7 @@ typedef enum trackingType {
     TA_USER_DEL,
     TA_USER_ADD,
     TA_USER_APPEND,
+    TA_USER_UNIQ_APPEND,
 
     TA_TYPES_NUM
 } tracking_type_t;
@@ -76,6 +77,7 @@ static void ta_type_names(char *types[]) {
     types[TA_USER_DEL] = "user_del";
     types[TA_USER_ADD] = "user_add";
     types[TA_USER_APPEND] = "user_append";
+    types[TA_USER_UNIQ_APPEND] = "user_uniq_append";
 }
 
 #define out_of_memory(l, n) do {                    \
@@ -848,6 +850,20 @@ int ta_user_append(const char *account_id,
     return ta_user_track(account_id,
                          distinct_id,
                          TA_USER_APPEND,
+                         properties,
+                         ta);
+}
+
+int ta_user_uniq_append(const char *account_id,
+                        const char *distinct_id,
+                        const TAProperties *properties,
+                        ThinkingdataAnalytics *ta) {
+    if (NULL == properties) {
+        return TA_INVALID_PARAMETER_ERROR;
+    }
+    return ta_user_track(account_id,
+                         distinct_id,
+                         TA_USER_UNIQ_APPEND,
                          properties,
                          ta);
 }

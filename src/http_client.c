@@ -123,3 +123,85 @@ HttpResponse *ta_http_post(
     curl_easy_cleanup(curl);
     return response;
 }
+
+
+HttpResponse *ta_debug_http_post(
+        const char *appid, const char *url, const char *data, int data_size, size_t data_length, int timeout_seconds, int dryRun)
+{
+    CURL *curl;
+    CURLcode res;
+    HttpResponse *response;
+    struct curl_slist *header_list = NULL;
+    char *final_encodedata_;
+    char *final_datas_;
+
+    curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "curl_easy_init() failed\n");
+        return NULL;
+    }
+
+    final_encodedata_ = curl_easy_escape(curl, data, strlen(data));
+
+    final_datas_ = (char *) malloc(strlen("appid=&source=server&dryRun=1&data=") + strlen(appid) + strlen(final_encodedata_) );
+    strcpy(final_datas_, "appid=");
+    strcat(final_datas_, appid);
+    strcat(final_datas_, "&source=server&");
+    strcat(final_datas_, "dryRun=");
+    if (dryRun == 1) {
+        strcat(final_datas_, "1");
+    } else {
+        strcat(final_datas_, "0");
+    }
+    strcat(final_datas_, "&data=");
+    strcat(final_datas_, final_encodedata_);
+
+    response = create_http_response();
+    if (response == NULL) {
+        return NULL;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, final_datas_);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(final_datas_));
+
+    // 若使用 HTTPS，有两种配置方式，选用其中一种即可：
+
+    // 1. 使用 CA 证书（下载地址 http://curl.haxx.se/ca/cacert.pem
+    // ），去掉下面一行的注释，并指定证书路径，例如证书在当前目录下
+    // curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
+
+    // 2. 不验证服务端证书，去掉下面两行的注释
+//    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+//    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+
+    {
+        char buffer[64];
+        header_list = curl_slist_append(header_list, buffer);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+    }
+
+    if (timeout_seconds > 0) {
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds);
+        // dont want to get a sig alarm on timeout
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    }
+
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_call_back);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
+
+    res = curl_easy_perform(curl);
+    curl_slist_free_all(header_list);
+
+    if (res != CURLE_OK) {
+        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        curl_easy_cleanup(curl);
+        destroy_http_response(response);
+        return NULL;
+    }
+
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response->status);
+    curl_easy_cleanup(curl);
+    return response;
+}

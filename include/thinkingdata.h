@@ -23,6 +23,13 @@ typedef enum {
     TA_TRUE = 1
 } TABool;
 
+/* TAMode */
+typedef enum {
+    TA_DEBUG_OFF = 0,
+    TA_DEBUG = 1,
+    TA_DEBUG_ONLY = 2,
+} TADebugMode;
+
 /* rotate mode */
 typedef enum {
     HOURLY,
@@ -116,6 +123,11 @@ int ta_user_append(const char *account_id,
                    const char *distinct_id,
                    const TAProperties *properties,
                    ThinkingdataAnalytics *ta);
+
+int ta_user_uniq_append(const char *account_id,
+                        const char *distinct_id,
+                        const TAProperties *properties,
+                        ThinkingdataAnalytics *ta);
 
 int ta_add_bool(const char *key, TABool bool_, TAProperties *properties);
 
