@@ -268,7 +268,7 @@ int ta_append_properties(const char *key, TAProperties *json, TAProperties *prop
     }
 
     ta_add_node_copy(node_new, list);
-    TA_SAFE_FREE(node_new);
+    ta_free_node(node_new);
 
     return TA_OK;
 }
