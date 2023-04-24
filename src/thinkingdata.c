@@ -49,6 +49,7 @@ const char TA_DATA_KEY_EVENT_ID[] = "#event_id";
 const char TA_DATA_FIRST_CHECK_ID[] = "#first_check_id";
 const char TA_DATA_KEY_LIB[] = "#lib";
 const char TA_DATA_KEY_LIB_VERSION[] = "#lib_version";
+const char TA_DATA_KEY_APPID[] = "#app_id";
 
 const char TA_CONFIG_LOG[] = "log";
 
@@ -107,11 +108,11 @@ void ta_safe_free(void *curr) {
     }
 }
 
-TAConfig *ta_init_config() {
+TAConfig *ta_init_config(void) {
     return ta_init_dict_node("config");
 }
 
-TAProperties *ta_init_properties() {
+TAProperties *ta_init_properties(void) {
     return ta_init_dict_node("properties");
 }
 
@@ -163,7 +164,7 @@ int ta_add_number(const char *key, double number_, TAProperties *properties) {
     return TA_OK;
 }
 
-int ta_add_int(const char *key, long long int_, TAProperties *properties) {
+int ta_add_int(const char *key, long int_, TAProperties *properties) {
     TANodeValue value;
     TANode *node_new;
 
@@ -210,22 +211,24 @@ int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties 
 }
 
 int ta_add_string(const char *key, const char *string_, unsigned int length, TAProperties *properties) {
+    char* value_string = NULL;
     TANodeValue value;
-    TANode *node_new;
-    char *value_string;
+    TANode* node_new = NULL;
 
     if (NULL == properties) {
         fprintf(stderr, "Parameter 'properties' is NULL.");
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    value_string = (char *) TA_SAFE_MALLOC(length + 1);
+    value_string = (char*)TA_SAFE_MALLOC(length + 1);
     if (value_string == NULL) {
         return TA_MALLOC_ERROR;
     }
+
     value.string_ = value_string;
     memcpy(value.string_, string_, length);
     value.string_[length] = 0;
+
     node_new = creat_new_node(TA_STRING, key, &value);
     if (node_new == NULL) {
         return TA_MALLOC_ERROR;
@@ -449,7 +452,7 @@ void ta_set_dynamic_properties(ta_dynamic_func func, ThinkingdataAnalytics *ta) 
 
 #if defined(USE_POSIX)
 
-static int ta_assert_key_name(const char *key, regex_t regex) {
+    static int ta_assert_key_name(const char *key, regex_t regex) {
 #elif defined(_WIN32)
     static int ta_assert_key_name(const char *key, pcre *regex) {
 #else
@@ -494,10 +497,10 @@ static int ta_check_parameter(const char *account_id,
         return TA_INVALID_PARAMETER_ERROR;
     }
 
-    if (type == TA_TRACK &&
+    if (type == TA_TRACK && 
         (NULL == event
-         #if defined(USE_POSIX)
-         || TA_OK != ta_assert_key_name(event, ta->regex))) {
+#if defined(USE_POSIX)
+        || TA_OK != ta_assert_key_name(event, ta->regex))) {
 #elif defined(_WIN32)
         || TA_OK != ta_assert_key_name(event, ta->regex))) {
 #else
@@ -511,7 +514,7 @@ static int ta_check_parameter(const char *account_id,
         TAListNode *curr = properties->value.child;
         while (NULL != curr) {
             if (NULL == curr->value->key
-                #if defined(USE_POSIX)
+#if defined(USE_POSIX)
                 || TA_OK != ta_assert_key_name(curr->value->key, ta->regex)) {
 #elif defined(_WIN32)
                 || TA_OK != ta_assert_key_name(curr->value->key, ta->regex)) {
@@ -575,6 +578,14 @@ static int analysis_properties(const struct TANode *properties, TANode *data, TA
             if (NULL != first_check_id_node) {
                 if (TA_OK != (res = ta_add_string(TA_DATA_FIRST_CHECK_ID, first_check_id_node->value.string_,
                                                   (int) strlen(first_check_id_node->value.string_), data))) {
+                    return res;
+                }
+            }
+        } else if (NULL != curr->value->key && 0 == strncmp(TA_DATA_KEY_APPID, curr->value->key, 256)) {
+            TANode *app_id_node = curr->value;
+            if (NULL != app_id_node) {
+                if (TA_OK != (res = ta_add_string(TA_DATA_KEY_APPID, app_id_node->value.string_,
+                                                  (int) strlen(app_id_node->value.string_), data))) {
                     return res;
                 }
             }
@@ -695,7 +706,9 @@ static int ta_internal_track(const char *account_id,
     }
 
     TA_LOCK(&ta->mutex);
+
     res = ta->consumer->op.add(ta->consumer->this_, log_str, strlen(log_str));
+
     TA_UNLOCK(&ta->mutex);
 
     TA_SAFE_FREE(log_str);
@@ -752,8 +765,13 @@ int ta_track_first_event(const char *account_id,
                          const char *distinct_id,
                          const char *event,
                          const char *firstCheckId,
-                         const TAProperties *properties,
+                         TAProperties *properties,
                          ThinkingdataAnalytics *ta) {
+    if (properties == NULL) {
+        properties = ta_init_properties();
+    }
+    ta_add_string(TA_DATA_FIRST_CHECK_ID, firstCheckId,
+                  (int) strlen(firstCheckId), properties);
     return ta_internal_track(account_id,
                              distinct_id,
                              TA_TRACK,

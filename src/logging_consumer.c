@@ -123,18 +123,18 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
             return TA_MALLOC_ERROR;
         }
         ta_logging_consumer_close(this_);
-        snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
+        snprintf(file_path, 2048, "%s/%s%d", inter->file_path, file_name_date, count);
 
         if (inter->file_size > 0) {
             while (file_exists(file_path) == 0 && file_size(file_path, inter->file_size)) {
                 count++;
-                snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, count);
+                snprintf(file_path, 2048, "%s/%s%d", inter->file_path, file_name_date, count);
             }
         }
 
         while ((file = fopen(file_path, "a")) == NULL && times++ < 10) {
             fprintf(stderr, "Fail to open file %s: %s", file_path, strerror(errno));
-            snprintf(file_path, 1024, "%s/%s%d", inter->file_path, file_name_date, ++count);
+            snprintf(file_path, 2048, "%s/%s%d", inter->file_path, file_name_date, ++count);
         }
         inter->last_file_count = count;
         inter->file = file;

@@ -7,7 +7,7 @@ const char TA_CONFIG_PUSH_URL[] = "push_url";
 const char TA_CONFIG_APPID[] = "appid";
 const char TA_CONFIG_TIMEOUT[] = "timeout";
 const char TA_CONFIG_DEBUG_MODE[] = "debug_mode";
-
+const char TA_CONFIG_DEBUG_DEVICE_ID[] = "device_id";
 
 typedef struct TAData_ {
     int size;
@@ -29,6 +29,7 @@ typedef struct {
     int max_cache_size;
     char appid[50];
     char push_url[1024];
+    char device_id[64];
     TADataList data_list;
     TAData *current_data;
     TADebugMode debug_mode;
@@ -78,12 +79,12 @@ static int ta_batch_consumer_flush(void *this_) {
     }
 
     if (data_list->size > inter->max_cache_size) {
-        // remove over sized data
+        /* remove over sized data */
         remove_head(data_list);
     }
 
     response = ta_debug_http_post(inter->appid, inter->push_url, current_data_, data_list->head->size,
-                            strlen(current_data_), inter->timeout, inter->debug_mode);
+                                  strlen(current_data_), inter->timeout, inter->debug_mode, inter->device_id);
 
     if (response != NULL) {
         if (inter->log) {
@@ -101,22 +102,9 @@ static int ta_batch_consumer_flush(void *this_) {
 }
 
 static int ta_batch_consumer_close(void *this_) {
-    TABatchConsumerInter *inter;
-    int retryCount = 0;
-
     if (NULL == this_) {
         return TA_INVALID_PARAMETER_ERROR;
     }
-
-    inter = (TABatchConsumerInter *) this_;
-//    while (inter->data_list.size > 0 && inter->current_data->size > 0 && retryCount < 50) {
-//        if (TA_OK == ta_batch_consumer_flush(inter)) {
-//            retryCount = 0;
-//        } else {
-//            retryCount++;
-//        }
-//    }
-
     return TA_OK;
 }
 
@@ -198,6 +186,11 @@ static void get_config_param_of_batch(TABatchConsumerInter *inter, const TAConfi
                 TANode *log_node = curr->value;
                 if (NULL != log_node) {
                     inter->log = log_node->value.boolean_;
+                }
+            } else if (0 == strncmp(TA_CONFIG_DEBUG_DEVICE_ID, curr->value->key, 256)) {
+                TANode *device_id_node = curr->value;
+                if (NULL != device_id_node) {
+                    snprintf(inter->device_id, 64, "%s", device_id_node->value.string_);
                 }
             }
         }

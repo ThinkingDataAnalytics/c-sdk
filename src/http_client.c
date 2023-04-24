@@ -1,6 +1,3 @@
-//
-// Created by lizhiming on 2021/10/11.
-//
 
 #include <curl/curl.h>
 #include <string.h>
@@ -9,7 +6,7 @@
 #include "http_client.h"
 #include "thinkingdata.h"
 
-static HttpResponse *create_http_response() {
+static HttpResponse *create_http_response(void) {
     HttpResponse *response = (HttpResponse *) TA_SAFE_MALLOC(sizeof(HttpResponse));
     if (response == NULL) {
         return NULL;
@@ -69,13 +66,6 @@ HttpResponse *ta_http_post(
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data_length);
 
-    // 若使用 HTTPS，有两种配置方式，选用其中一种即可：
-
-    // 1. 使用 CA 证书（下载地址 http://curl.haxx.se/ca/cacert.pem
-    // ），去掉下面一行的注释，并指定证书路径，例如证书在当前目录下
-    // curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
-
-    // 2. 不验证服务端证书，去掉下面两行的注释
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
@@ -102,7 +92,7 @@ HttpResponse *ta_http_post(
 
     if (timeout_seconds > 0) {
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds);
-        // dont want to get a sig alarm on timeout
+        /* dont want to get a sig alarm on timeout */
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     }
 
@@ -124,9 +114,8 @@ HttpResponse *ta_http_post(
     return response;
 }
 
-
 HttpResponse *ta_debug_http_post(
-        const char *appid, const char *url, const char *data, int data_size, size_t data_length, int timeout_seconds, int dryRun)
+        const char *appid, const char *url, const char *data, int data_size, size_t data_length, int timeout_seconds, int dryRun, const char* device_id)
 {
     CURL *curl;
     CURLcode res;
@@ -141,13 +130,14 @@ HttpResponse *ta_debug_http_post(
         return NULL;
     }
 
+    device_id = device_id == NULL ? "" : device_id;
+
     final_encodedata_ = curl_easy_escape(curl, data, strlen(data));
 
-    final_datas_ = (char *) malloc(strlen("appid=&source=server&dryRun=1&data=") + strlen(appid) + strlen(final_encodedata_) );
+    final_datas_ = (char *) malloc(strlen("appid=&source=server&dryRun=1&data=&deviceId=") + strlen(appid) + strlen(final_encodedata_) + strlen(device_id) + 1);
     strcpy(final_datas_, "appid=");
     strcat(final_datas_, appid);
-    strcat(final_datas_, "&source=server&");
-    strcat(final_datas_, "dryRun=");
+    strcat(final_datas_, "&source=server&dryRun=");
     if (dryRun == 1) {
         strcat(final_datas_, "1");
     } else {
@@ -155,6 +145,8 @@ HttpResponse *ta_debug_http_post(
     }
     strcat(final_datas_, "&data=");
     strcat(final_datas_, final_encodedata_);
+    strcat(final_datas_, "&deviceId=");
+    strcat(final_datas_, device_id);
 
     response = create_http_response();
     if (response == NULL) {
@@ -166,15 +158,8 @@ HttpResponse *ta_debug_http_post(
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, final_datas_);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(final_datas_));
 
-    // 若使用 HTTPS，有两种配置方式，选用其中一种即可：
-
-    // 1. 使用 CA 证书（下载地址 http://curl.haxx.se/ca/cacert.pem
-    // ），去掉下面一行的注释，并指定证书路径，例如证书在当前目录下
-    // curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
-
-    // 2. 不验证服务端证书，去掉下面两行的注释
-//    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-//    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
     {
         char buffer[64];
@@ -184,7 +169,7 @@ HttpResponse *ta_debug_http_post(
 
     if (timeout_seconds > 0) {
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds);
-        // dont want to get a sig alarm on timeout
+        /* dont want to get a sig alarm on timeout */
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     }
 

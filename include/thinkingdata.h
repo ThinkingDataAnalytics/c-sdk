@@ -27,7 +27,7 @@ typedef enum {
 typedef enum {
     TA_DEBUG_OFF = 0,
     TA_DEBUG = 1,
-    TA_DEBUG_ONLY = 2,
+    TA_DEBUG_ONLY = 2
 } TADebugMode;
 
 /* rotate mode */
@@ -92,7 +92,7 @@ int ta_track_first_event(const char *account_id,
                          const char *distinct_id,
                          const char *event,
                          const char *firstCheckId,
-                         const TAProperties *properties,
+                         TAProperties *properties,
                          ThinkingdataAnalytics *ta);
 
 int ta_user_set(const char *account_id,
@@ -135,7 +135,7 @@ int ta_add_number(const char *key, double number_, TAProperties *properties);
 
 int ta_add_property(TAProperties *subProperties_, TAProperties *properties);
 
-int ta_add_int(const char *key, long long int_, TAProperties *properties);
+int ta_add_int(const char *key, long int_, TAProperties *properties);
 
 int ta_add_date(const char *key, time_t seconds, int microseconds, TAProperties *properties);
 

@@ -218,7 +218,7 @@ char *print_node(const struct TANode *node, int depth) {
             if (out == NULL) {
                 return NULL;
             }
-            snprintf(out, 64, "%lld", value_get_int(node));
+            snprintf(out, 64, "%ld", value_get_int(node));
             break;
         case TA_DATE: {
             char *time = convert_time_to_string(node);

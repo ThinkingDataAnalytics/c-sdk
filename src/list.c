@@ -246,7 +246,7 @@ double value_get_number(const TANode *value) {
     return value_get_type(value) == TA_NUMBER ? value->value.number_ : 0;
 }
 
-long long value_get_int(const TANode *value) {
+long value_get_int(const TANode *value) {
     return value_get_type(value) == TA_INT ? value->value.int_ : 0;
 }
 

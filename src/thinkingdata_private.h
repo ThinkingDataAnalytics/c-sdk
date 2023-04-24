@@ -7,10 +7,10 @@
 
 #include <thinkingdata.h>
 
-#define TA_LIB_VERSION "1.3.6"
+#define TA_LIB_VERSION "1.3.7-beta.1"
 #define TA_LIB "C"
 
-const char TA_CONFIG_LOG[];
+extern const char TA_CONFIG_LOG[];
 
 typedef int (*ta_consumer_add)(void *this_, const char *event, unsigned long length);
 
@@ -37,14 +37,14 @@ enum TANodeType_ {
     TA_DATE = 4,
     TA_STRING = 5,
     TA_DICT = 6,
-    TA_ARRAY = 7,
+    TA_ARRAY = 7
 };
 typedef int TANodeType;
 
 typedef union TANodeValue {
     TABool boolean_;
     double number_;
-    long long int_;
+    long int_;
     struct {
         time_t seconds;
         int microseconds;

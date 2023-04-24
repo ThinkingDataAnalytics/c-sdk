@@ -1,46 +1,38 @@
-**v1.3.3** (2022-02-18)
+### v1.3.7-beta.1
+**Date:** 2023/04/23
 
-- 修复 snprintf 可能导致的重名问题
+**Notes:**
 
-**v1.3.2** (2021-11-23)
+* Tidy example program
+* Tidy CMakeList.txt
+* Improve compatibility
 
-- 优化 windows 平台里的 snprintf 方法
+### v1.3.6
+**Date:** 2022/06/22
 
-**v1.3.1** (2021-11-10)
+**Notes:**
 
-- malloc失败时不再直接exit
+* Improve stability
 
-**v1.3.0** (2021-10-13)
+### v1.3.5
+**Date:** 2022/05/16
 
-- 增加支持batch consumer
+**Notes:**
 
-**v1.2.3** (2021-09-23)
+* Supports debug_consumer
+* Supports async_batch_consumer
+* Add API: ta_user_uniq_append()
 
-- 修复#first_check_id无法正常处理的问题
+### v1.3.4
+**Date:** 2022/03/03
 
-**v1.2.2** (2021-07-01)
+**Notes:**
 
-- 适配windows环境
+* Supports object group
 
-**v1.2.1** (2021-06-09)
+### v1.3.3
+**Date:** 2022/02/08
 
-- 不再使用stdbool库
+**Notes:**
 
-**v1.2.0** (2020-12-07)
-
-- 支持指定log前缀
-- 增加自动创建目录
-
-**v1.1.0** (2020-02-12)
-
-- 支持 array 数据
-- 新增 user_append 接口
-- 支持动态公共属性设置
-- 支持设置“#uuid”，配合后台使用
-
-**v1.0.0** (2019-09-29)
-
-- debug consumer
-- logger consumer
-- support track/user_set/user_setOnce/user_add/user_del
-- support super properties.
+* Fix bug: Possible duplicate name problems because of snprintf

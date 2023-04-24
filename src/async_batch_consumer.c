@@ -1,12 +1,14 @@
-//
-// Created by wwango on 2022/5/10.
-//
 
 #include <string.h>
 #include "thinkingdata_private.h"
 #include "http_client.h"
 #include "util.h"
+
+#if defined(USE_POSIX)
 #include <pthread.h>
+#elif defined(_WIN32)
+#include<Windows.h>
+#endif
 
 const char TA_CONFIG_PUSH_URL[] = "push_url";
 const char TA_CONFIG_APPID[] = "appid";
@@ -53,7 +55,12 @@ static void remove_head(TADataList *data_list) {
     TA_SAFE_FREE(head);
 }
 
-static int ta_async_batch_consumer_flush(void *this_) {
+#if defined(USE_POSIX)
+static int ta_async_batch_consumer_flush(void* this_)
+#elif defined(_WIN32)
+static DWORD WINAPI ta_async_batch_consumer_flush(LPVOID this_)
+#endif
+{
     TABatchConsumerInter *inter = (TABatchConsumerInter *) this_;
     HttpResponse *response;
     char *current_data_;
@@ -86,59 +93,55 @@ static int ta_async_batch_consumer_flush(void *this_) {
     }
 
     if (data_list->size > inter->max_cache_size) {
-        // remove over sized data
+        /* remove over sized data */
         remove_head(data_list);
     }
 
-    response = ta_http_post(inter->appid, inter->push_url, data_list->head->data, data_list->head->size,
-                            strlen(data_list->head->data), inter->timeout);
-
-    if (response != NULL) {
-        if (inter->log) {
-            ta_debug("response: status=%ld, body=%s\n", response->status, response->body);
-        }
-        if (response->status == 200) {
-            remove_head(data_list);
-            destroy_http_response(response);
-            return TA_OK;
-        } else {
-            destroy_http_response(response);
-        }
-    }
-    return TA_OK;
-}
-
-static int ta_batch_consumer_flush(void *this_) {
-    pthread_t pId;
-    int i,ret;
-    //创建子线程，线程id为pId
-    ret = pthread_create(&pId,NULL,ta_async_batch_consumer_flush, this_);
-    if(ret != 0)
-    {
-        ta_debug("create pthread error!");
-    }
-    //等待线程pId的完成
-    pthread_join(pId,NULL);
-    return TA_OK;
-}
-
-static int ta_batch_consumer_close(void *this_) {
-    TABatchConsumerInter *inter;
     int retryCount = 0;
-
-    if (NULL == this_) {
-        return TA_INVALID_PARAMETER_ERROR;
-    }
-
-    inter = (TABatchConsumerInter *) this_;
-    while (inter->data_list.size > 0 && inter->current_data->size > 0 && retryCount < 50) {
-        if (TA_OK == ta_batch_consumer_flush(inter)) {
-            retryCount = 0;
+    while (inter->data_list.size > 0 && retryCount < 50) {
+        response = ta_http_post(inter->appid, inter->push_url, data_list->head->data, data_list->head->size,
+                                strlen(data_list->head->data), inter->timeout);
+        if (response != NULL) {
+            if (inter->log) {
+                ta_debug("response: status=%ld, body=%s\n", response->status, response->body);
+            }
+            if (response->status == 200) {
+                remove_head(data_list);
+                destroy_http_response(response);
+                retryCount = 0;
+            } else {
+                destroy_http_response(response);
+                retryCount++;
+            }
         } else {
             retryCount++;
         }
     }
 
+    return TA_OK;
+}
+
+static int ta_batch_consumer_flush(void *this_) {
+#if defined(USE_POSIX)
+    pthread_t pId;
+    int ret;
+    ret = pthread_create(&pId, NULL, (void* (*)(void*)) ta_async_batch_consumer_flush, this_);
+    if (ret != 0)
+    {
+        ta_debug("create pthread error!");
+    }
+    pthread_join(pId, NULL);
+#elif defined(_WIN32)
+    ta_async_batch_consumer_flush(this_);
+#endif
+    return TA_OK;
+}
+
+static int ta_batch_consumer_close(void *this_) {
+    if (NULL == this_) {
+        return TA_INVALID_PARAMETER_ERROR;
+    }
+    ta_batch_consumer_flush(this_);
     return TA_OK;
 }
 

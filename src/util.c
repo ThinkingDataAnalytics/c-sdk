@@ -46,6 +46,14 @@ void ta_debug(const char *msg, ...) {
     va_end(ap);
 }
 
+void inner_make_dir(const char *path) {
+#ifdef __WIN32__
+    mkdir(path);
+#else
+    mkdir(path, 0777);
+#endif
+}
+
 void mkdirs(char *path) {
     int i, len;
     char str[1024];
@@ -62,20 +70,17 @@ void mkdirs(char *path) {
         tempStr[i] = str[i];
         if (str[i] == split_flag) {
             if (file_exists(tempStr) != 0) {
-                mkdir(tempStr, 0777);
+                inner_make_dir(tempStr);
             }
         }
     }
     if (file_exists(str) != 0) {
-        mkdir(str, 0777);
+        inner_make_dir(tempStr);
     }
 }
 
 int file_exists(const char *filename) {
     struct stat buffer;
     int exist = stat(filename, &buffer);
-    if (exist == 0)
-        return 0;
-    else
-        return 1;
+    return exist == 0 ? 0 : 1;
 }

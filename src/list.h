@@ -17,7 +17,7 @@ TANodeType value_get_type(const TANode *value);
 int value_get_boolean(const TANode *value);
 const char  *value_get_string(const TANode *value);
 double value_get_number(const TANode *value);
-long long value_get_int(const TANode *value);
+long value_get_int(const TANode *value);
 struct TANode *creat_new_node(TANodeType type, const char *key, TANodeValue *value);
 
 #endif /* list_h */

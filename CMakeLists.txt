@@ -1,65 +1,96 @@
 cmake_minimum_required(VERSION 3.12)
 project(ta-c-sdk)
-
-if(WIN32)
-    set(CMAKE_C_FLAGS "-std=c89")
-else()
-    add_compile_definitions(USE_POSIX)
-    set(CMAKE_C_FLAGS "-std=c89 -Werror=declaration-after-statement")
-endif()
+message("[ThinkingEngine] CMAKE_HOST_SYSTEM: ${CMAKE_HOST_SYSTEM} ")
 
 include_directories(include)
 
-add_library(thinkingdata src/thinkingdata.c src/json.c src/list.c src/util.c src/logging_consumer.c)
+#################################################################
+
+# # Product Library: logging consumer
+#  if(WIN32)
+#      add_compile_definitions(USE_WIN)
+#      set(CMAKE_C_FLAGS "-std=c89 -pedantic-errors -m32")
+#  else()
+#      add_compile_definitions(USE_POSIX)
+#      set(CMAKE_C_FLAGS "-std=c89")
+#  endif()
+#  SET(TE_LIB_NAME thinkingdata)
+#  add_library(${TE_LIB_NAME} src/thinkingdata.c src/json.c src/list.c src/util.c src/logging_consumer.c)
+#  if(WIN32)
+#      include_directories(thirdparty/pcre/include)
+#      link_directories(thirdparty/pcre/lib)
+#      target_link_libraries(${TE_LIB_NAME} pcre_x86)
+#  endif()
+
+#################################################################
+
+## Debug Library: debug consumer
+#if(WIN32)
+#    add_compile_definitions(USE_WIN)
+#    set(CMAKE_C_FLAGS "-std=c99 -pedantic-errors -m64")
+#else()
+#    add_compile_definitions(USE_POSIX)
+#    set(CMAKE_C_FLAGS "-std=c99")
+#endif()
+#SET(TE_LIB_NAME thinkingDataDebug)
+#add_library(${TE_LIB_NAME} src/thinkingdata.c src/json.c src/list.c src/util.c src/debug_consumer.c src/http_client.c)
+#if(WIN32)
+#    add_compile_definitions(BUILDING_LIBCURL)
+#    include_directories(thirdparty/pcre/include thirdparty/curl/include)
+#	link_directories(thirdparty/pcre/lib thirdparty/curl/lib)
+#    target_link_libraries(${TE_LIB_NAME} pcre_x64 libcurl)
+#else()
+#    target_link_libraries(${TE_LIB_NAME} curl)
+#endif()
+
+#################################################################
+
+## Product Library: batch consumer
+#if(WIN32)
+#    add_compile_definitions(USE_WIN)
+#    set(CMAKE_C_FLAGS "-std=c99 -pedantic-errors -m64")
+#else()
+#    add_compile_definitions(USE_POSIX)
+#    set(CMAKE_C_FLAGS "-std=c99")
+#endif()
+# SET(TE_LIB_NAME thinkingDataBatch)
+# add_library(${TE_LIB_NAME} src/thinkingdata.c src/json.c src/list.c src/util.c src/batch_consumer.c src/http_client.c)
+# if(WIN32)
+#     add_compile_definitions(BUILDING_LIBCURL)
+#     include_directories(thirdparty/pcre/include thirdparty/curl/include)
+# 	link_directories(thirdparty/pcre/lib thirdparty/curl/lib)
+#     target_link_libraries(${TE_LIB_NAME} pcre_x64 libcurl)
+# else()
+#     target_link_libraries(${TE_LIB_NAME} curl)
+# endif()
+
+#################################################################
+
+# Product Library: async batch consumer
 if(WIN32)
-    include_directories(thirdparty/pcre/include)
-	link_directories(thirdparty/pcre/lib)
-    target_link_libraries(thinkingdata pcre_x86)
+    add_compile_definitions(USE_WIN)
+    set(CMAKE_C_FLAGS "-std=c99 -pedantic-errors -m64")
+else()
+    add_compile_definitions(USE_POSIX)
+    set(CMAKE_C_FLAGS "-std=c89")
 endif()
-
-
-add_library(thinkingdata_http src/thinkingdata.c src/json.c src/list.c src/util.c src/batch_consumer.c src/http_client.c)
+SET(TE_LIB_NAME thinkingDataAsyncBatch)
+add_library(${TE_LIB_NAME} src/thinkingdata.c src/json.c src/list.c src/util.c src/async_batch_consumer.c src/http_client.c)
 if(WIN32)
-	add_compile_definitions(BUILDING_LIBCURL)
+    add_compile_definitions(BUILDING_LIBCURL)
     include_directories(thirdparty/pcre/include thirdparty/curl/include)
 	link_directories(thirdparty/pcre/lib thirdparty/curl/lib)
-    #target_link_libraries(ta_sdk_http pcre_x86 libcurl ws2_32 winmm wldap32)
-    target_link_libraries(thinkingdata_http pcre_x86 libcurl)
-else ()
-    target_link_libraries(thinkingdata_http curl)
+    target_link_libraries(${TE_LIB_NAME} pcre_x64 libcurl)
+else()
+    target_link_libraries(${TE_LIB_NAME} curl)
+    find_package(Threads REQUIRED)
+    target_link_libraries(${TE_LIB_NAME} Threads::Threads)
 endif()
 
-add_library(thinkingdata_debug src/thinkingdata.c src/json.c src/list.c src/util.c src/debug_consumer.c src/http_client.c)
-if(WIN32)
-    add_compile_definitions(BUILDING_LIBCURL)
-    include_directories(thirdparty/pcre/include thirdparty/curl/include)
-    link_directories(thirdparty/pcre/lib thirdparty/curl/lib)
-    #target_link_libraries(ta_sdk_http pcre_x86 libcurl ws2_32 winmm wldap32)
-    target_link_libraries(thinkingdata_debug pcre_x86 libcurl)
-else ()
-    target_link_libraries(thinkingdata_debug curl)
-endif()
+#################################################################
 
-add_library(thinkingdata_async_batch src/thinkingdata.c src/json.c src/list.c src/util.c src/async_batch_consumer.c src/http_client.c)
-if(WIN32)
-    add_compile_definitions(BUILDING_LIBCURL)
-    include_directories(thirdparty/pcre/include thirdparty/curl/include)
-    link_directories(thirdparty/pcre/lib thirdparty/curl/lib)
-    #target_link_libraries(ta_sdk_http pcre_x86 libcurl ws2_32 winmm wldap32)
-    target_link_libraries(thinkingdata_async_batch pcre_x86 libcurl)
-else ()
-    target_link_libraries(thinkingdata_async_batch curl)
-endif()
-
-add_executable(demo-logging-consumer demo/demo.c)
-target_link_libraries(demo-logging-consumer thinkingdata)
-
-#add_executable(demo-batch-consumer demo/http_client_demo.c)
-#target_link_libraries(demo-batch-consumer thinkingdata_http)
-
-#add_executable(demo-debug demo/debug_demo.c)
-#target_link_libraries(demo-debug thinkingdata_debug)
-
-#add_executable(demo-async-batch demo/async_batch_demo.c)
-#target_link_libraries(demo-async-batch thinkingdata_async_batch)
+# create program execute file
+add_executable(program demo/demo.c)
+# link TE lib
+target_link_libraries(program ${TE_LIB_NAME})
 
