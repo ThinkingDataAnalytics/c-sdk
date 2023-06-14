@@ -297,22 +297,24 @@ int ta_append_array(const char *key, const char *string_, unsigned int length, T
         ta_add_node(list, properties);
     }
 
-    value_string = (char *) TA_SAFE_MALLOC(length + 1);
-    if (value_string == NULL) {
-        return TA_MALLOC_ERROR;
-    }
-    value.string_ = value_string;
-    memcpy(value.string_, string_, length);
-    value.string_[length] = 0;
-    node_new = creat_new_node(TA_STRING, NULL, &value);
-    if (NULL == node_new) {
-        return TA_MALLOC_ERROR;
-    }
+    if (string_ != NULL) {
+        value_string = (char *) TA_SAFE_MALLOC(length + 1);
+        if (value_string == NULL) {
+            return TA_MALLOC_ERROR;
+        }
+        value.string_ = value_string;
+        memcpy(value.string_, string_, length);
+        value.string_[length] = 0;
+        node_new = creat_new_node(TA_STRING, NULL, &value);
+        if (NULL == node_new) {
+            return TA_MALLOC_ERROR;
+        }
 
-    ta_add_node_copy(node_new, list);
+        ta_add_node_copy(node_new, list);
 
-    TA_SAFE_FREE(value.string_);
-    TA_SAFE_FREE(node_new);
+        TA_SAFE_FREE(value.string_);
+        TA_SAFE_FREE(node_new);
+    }
 
     return TA_OK;
 }

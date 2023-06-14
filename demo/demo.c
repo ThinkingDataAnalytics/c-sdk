@@ -29,11 +29,11 @@ int main(int args, char **argv) {
 
     /*consumer = getDebugConsumer();*/
 
-    /*consumer = getLoggingConsumer();*/
+    consumer = getLoggingConsumer();
 
     /*consumer = getBatchConsumer();*/
 
-    consumer = getAsyncBatchConsumer();
+    /*consumer = getAsyncBatchConsumer();*/
 
     if (consumer == NULL) return 0;
 
@@ -170,7 +170,7 @@ struct TAConsumer* getDebugConsumer(void) {
 struct TAConsumer* getLoggingConsumer(void) {
     struct TAConsumer* consumer = NULL;
     TAConfig* config = ta_init_config();
-    char* logPath = "./c_sdk_dev_log";
+    char* logPath = "H:/c_sdk_dev_log";
     TA_ASSERT(TA_OK == ta_add_string("file_path", logPath, strlen(logPath), config));
     TA_ASSERT(TA_OK == ta_add_int("rotate_mode", DAILY, config));
     TA_ASSERT(TA_OK == ta_add_int("file_size", 1024, config));
