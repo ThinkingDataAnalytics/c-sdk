@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "thinkingdata_private.h"
-#include "http_client.h"
+#include "td_http_client.h"
 #include "thinkingdata.h"
 
 static HttpResponse *create_http_response(void) {

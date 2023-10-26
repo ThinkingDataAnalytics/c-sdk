@@ -1,8 +1,7 @@
-#include "util.h"
+#include "td_util.h"
 #include <string.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 char *convert_time_to_string(const TANode *time_node) {
     struct tm tm;
@@ -39,11 +38,27 @@ char *ta_strdup(const char *str) {
     return new_str;
 }
 
-void ta_debug(const char *msg, ...) {
-    va_list ap;
-    va_start(ap, msg);
-    vprintf(msg, ap);
-    va_end(ap);
+static TDBool g_td_enableLog = TD_FALSE;
+
+void td_enableLog(int enable) {
+    g_td_enableLog = enable == TD_TRUE ? TD_TRUE : TD_FALSE;
+}
+
+void td_logInfo(const char *msg, ...) {
+    if (g_td_enableLog == TD_TRUE) {
+        va_list ap;
+
+        time_t currentTime;
+        struct tm *localTime;
+        currentTime = time(NULL);
+        localTime = localtime(&currentTime);
+        printf("[ThinkingData][%d-%02d-%02d %02d:%02d:%02d] ", localTime->tm_year + 1900, localTime->tm_mon + 1, localTime->tm_mday, localTime->tm_hour, localTime->tm_min, localTime->tm_sec);
+
+        va_start(ap, msg);
+        vprintf(msg, ap);
+        printf("\n");
+        va_end(ap);
+    }
 }
 
 void inner_make_dir(const char *path) {
@@ -65,7 +80,7 @@ void mkdirs(char *path) {
     split_flag = '/';
 #endif
     strncpy(str, path, 1024);
-    len = strlen(str);
+    len = (int)strlen(str);
     for (i = 0; i < len; i++) {
         tempStr[i] = str[i];
         if (str[i] == split_flag) {

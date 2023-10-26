@@ -1,5 +1,5 @@
-#ifndef list_h
-#define list_h
+#ifndef td_list_h
+#define td_list_h
 
 #include <stdio.h>
 #include "thinkingdata_private.h"
@@ -20,4 +20,4 @@ double value_get_number(const TANode *value);
 long value_get_int(const TANode *value);
 struct TANode *creat_new_node(TANodeType type, const char *key, TANodeValue *value);
 
-#endif /* list_h */
+#endif /* td_list_h */

@@ -1,5 +1,5 @@
-#ifndef THINKINGDATA_ANALYTICS_CORE_H
-#define THINKINGDATA_ANALYTICS_CORE_H
+#ifndef thinkingdata_private_h
+#define thinkingdata_private_h
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,10 +7,12 @@
 
 #include <thinkingdata.h>
 
-#define TA_LIB_VERSION "1.3.7-beta.2"
+#define TA_LIB_VERSION "2.0.0-beta.1"
 #define TA_LIB "C"
 
 extern const char TA_CONFIG_LOG[];
+
+struct TDLog;
 
 typedef int (*ta_consumer_add)(void *this_, const char *event, unsigned long length);
 
@@ -24,7 +26,7 @@ struct TAConsumerOp {
     ta_consumer_close close;
 };
 
-struct TAConsumer {
+struct TDConsumer {
     struct TAConsumerOp op;
     void *this_;
 };
@@ -42,7 +44,7 @@ enum TANodeType_ {
 typedef int TANodeType;
 
 typedef union TANodeValue {
-    TABool boolean_;
+    TDBool boolean_;
     double number_;
     long int_;
     struct {
@@ -103,4 +105,4 @@ int snprintf(char *outBuf, size_t size, const char *format, ...);
 #endif
 #endif
 
-#endif  /* THINKINGDATA_ANALYTICS_CORE_H*/
+#endif  /* thinkingdata_private_h */

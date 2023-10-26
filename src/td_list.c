@@ -1,6 +1,6 @@
-#include "list.h"
+#include "td_list.h"
 #include <string.h>
-#include "util.h"
+#include "td_util.h"
 
 typedef struct {
     TAListNode *next;
@@ -235,7 +235,7 @@ TANodeType value_get_type(const TANode *value) {
 }
 
 int value_get_boolean(const TANode *value) {
-    return value_get_type(value) == TA_Boolean ? value->value.boolean_ : -1;
+    return value_get_type(value) == TA_Boolean ? (int)(value->value.boolean_) : -1;
 }
 
 const char *value_get_string(const TANode *value) {

@@ -1,8 +1,19 @@
 #include "thinkingdata_private.h"
-#include "util.h"
+#include "td_util.h"
 #include <string.h>
 #include <sys/stat.h>
+
+#if defined(USE_POSIX)
+#if defined(_WIN32)
+#error Both USE_POSIX and _WIN32 are defined
+#endif
+
 #include <errno.h>
+
+#elif defined(_WIN32)
+#else
+#error Neither USE_POSIX nor _WIN32 is defined
+#endif
 
 const char TA_CONFIG_ROTATE_MODE[] = "rotate_mode";
 const char TA_CONFIG_FILE_SIZE[] = "file_size";
@@ -11,28 +22,33 @@ const char TA_CONFIG_FILE_PREFIX[] = "file_prefix";
 
 typedef struct {
     int file_size;
-    TABool log;
+    TDBool log;
     char last_file_date[512];
     int last_file_count;
     char file_path[1024];
     char file_prefix[64];
-    TARotateMode rotate_mode;
+    TDRotateMode rotate_mode;
     FILE *file;
 } TALoggingConsumerInter;
 
 static int ta_logging_consumer_flush(void *this_) {
     TALoggingConsumerInter *inter = (TALoggingConsumerInter *) this_;
+
+    td_logInfo("TDLoggerConsumer flush data.");
+
     if (NULL != inter->file && 0 == fflush(inter->file)) {
-        return TA_OK;
+        return TD_OK;
     }
-    return TA_IO_ERROR;
+    return TD_IO_ERROR;
 }
 
 static int ta_logging_consumer_close(void *this_) {
     TALoggingConsumerInter *inter;
 
+    td_logInfo("TDLoggerConsumer close.");
+
     if (NULL == this_) {
-        return TA_INVALID_PARAMETER_ERROR;
+        return TD_INVALID_PARAMETER_ERROR;
     }
 
     inter = (TALoggingConsumerInter *) this_;
@@ -43,19 +59,19 @@ static int ta_logging_consumer_close(void *this_) {
         inter->last_file_count = 0;
     }
 
-    return TA_OK;
+    return TD_OK;
 }
 
-static TABool file_size(char *file_name, int file_size) {
+static TDBool file_size(char *file_name, int file_size) {
     struct stat buffer;
     long size;
 
     stat(file_name, &buffer);
     size = buffer.st_size / (1024 * 1024);
     if (size >= file_size) {
-        return TA_TRUE;
+        return TD_TRUE;
     } else {
-        return TA_FALSE;
+        return TD_FALSE;
     }
 }
 
@@ -64,18 +80,18 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
     struct tm tm;
     time_t t;
     char *file_prefix = NULL, *file_name_date = NULL;
-    size_t prefixLength;
+    unsigned int prefixLength;
     int count = 0;
-    TABool need_new_file = TA_FALSE;
+    TDBool need_new_file = TD_FALSE;
 
     if (NULL == this_ || NULL == event) {
-        return TA_INVALID_PARAMETER_ERROR;
+        return TD_INVALID_PARAMETER_ERROR;
     }
 
     inter = (TALoggingConsumerInter *) this_;
     t = time(NULL);
     LOCALTIME(&t, &tm);
-    prefixLength = strlen(inter->file_prefix);
+    prefixLength = (unsigned int)strlen(inter->file_prefix);
     if (prefixLength > 0) {
         file_prefix = (char *) malloc(prefixLength + 4 + 1);
         strcpy(file_prefix, inter->file_prefix);
@@ -87,9 +103,9 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
 
     file_name_date = TA_SAFE_MALLOC(512);
     if (file_name_date == NULL) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
-    if (inter->rotate_mode == DAILY) {
+    if (inter->rotate_mode == TD_DAILY) {
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
     } else {
         snprintf(file_name_date, 512, "%s.%4d-%02d-%02d-%02d_", file_prefix, tm.tm_year + 1900, tm.tm_mon + 1,
@@ -105,22 +121,22 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
             size = ftell(inter->file) / (1024 * 1024);
             if (size >= inter->file_size) {
                 count++;
-                need_new_file = TA_TRUE;
+                need_new_file = TD_TRUE;
             }
         } else {
-            need_new_file = TA_FALSE;
+            need_new_file = TD_FALSE;
         }
     } else {
-        need_new_file = TA_TRUE;
+        need_new_file = TD_TRUE;
         snprintf(inter->last_file_date, 512, "%s", file_name_date);
     }
 
-    if (need_new_file == TA_TRUE) {
+    if (need_new_file == TD_TRUE) {
         FILE *file = NULL;
         unsigned int times = 0;
         char *file_path = TA_SAFE_MALLOC(1024);
         if (file_path == NULL) {
-            return TA_MALLOC_ERROR;
+            return TD_MALLOC_ERROR;
         }
         ta_logging_consumer_close(this_);
         snprintf(file_path, 2048, "%s/%s%d", inter->file_path, file_name_date, count);
@@ -141,22 +157,24 @@ static int ta_logging_consumer_add(void *this_, const char *event, unsigned long
         TA_SAFE_FREE(file_path);
     }
 
+    td_logInfo("Write data to file. Data: %s", event);
+
     fwrite(event, length, 1, inter->file);
     fwrite("\n", 1, 1, inter->file);
     fflush(inter->file);
 
     TA_SAFE_FREE(file_name_date);
-    return TA_OK;
+    return TD_OK;
 }
 
-static void get_config_param(TALoggingConsumerInter *inter, const TAConfig *config) {
+static void get_config_param(TALoggingConsumerInter *inter, const TDConfig *config) {
     TAListNode *curr = config->value.child;
     while (NULL != curr) {
         if (NULL != curr->value->key) {
             if (0 == strncmp(TA_CONFIG_ROTATE_MODE, curr->value->key, 256)) {
                 TANode *rotate_node = curr->value;
                 if (NULL != rotate_node) {
-                    inter->rotate_mode = (TARotateMode) rotate_node->value.int_;
+                    inter->rotate_mode = (TDRotateMode) rotate_node->value.int_;
                 }
             } else if (0 == strncmp(TA_CONFIG_FILE_SIZE, curr->value->key, 256)) {
                 TANode *file_size_node = curr->value;
@@ -187,11 +205,11 @@ static void get_config_param(TALoggingConsumerInter *inter, const TAConfig *conf
     }
 }
 
-int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
-    struct TAConsumer *ta_consumer;
+int td_init_consumer(struct TDConsumer **ta, const TDConfig *config) {
+    struct TDConsumer *ta_consumer;
     TALoggingConsumerInter *inter = (TALoggingConsumerInter *) TA_SAFE_MALLOC(sizeof(TALoggingConsumerInter));
     if (inter == NULL) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
     memset(inter, 0, sizeof(TALoggingConsumerInter));
 
@@ -200,11 +218,11 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
         get_config_param(inter, config);
     }
 
-    ta_consumer = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
+    ta_consumer = (struct TDConsumer *) TA_SAFE_MALLOC(sizeof(struct TDConsumer));
     if (ta_consumer == NULL) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
-    memset(ta_consumer, 0, sizeof(struct TAConsumer));
+    memset(ta_consumer, 0, sizeof(struct TDConsumer));
 
     ta_consumer->this_ = (void *) inter;
     ta_consumer->op.add = &ta_logging_consumer_add;
@@ -213,6 +231,7 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
 
     *ta = ta_consumer;
 
-    return TA_OK;
+    td_logInfo("Init log consumer. Log directory: %s", inter->file_path);
+    return TD_OK;
 }
 

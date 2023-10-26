@@ -1,6 +1,6 @@
 
-#ifndef TA_C_SDK_HTTP_CLIENT_H
-#define TA_C_SDK_HTTP_CLIENT_H
+#ifndef TA_C_SDK_TD_HTTP_CLIENT_H
+#define TA_C_SDK_TD_HTTP_CLIENT_H
 
 typedef struct {
     long status;

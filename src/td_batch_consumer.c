@@ -1,14 +1,7 @@
-
 #include <string.h>
 #include "thinkingdata_private.h"
-#include "http_client.h"
-#include "util.h"
-
-#if defined(USE_POSIX)
-#include <pthread.h>
-#elif defined(_WIN32)
-#include<Windows.h>
-#endif
+#include "td_http_client.h"
+#include "td_util.h"
 
 const char TA_CONFIG_PUSH_URL[] = "push_url";
 const char TA_CONFIG_APPID[] = "appid";
@@ -31,7 +24,7 @@ typedef struct {
 
 typedef struct {
     int batch_size;
-    TABool log;
+    TDBool log;
     int timeout;
     int max_cache_size;
     char appid[50];
@@ -55,25 +48,23 @@ static void remove_head(TADataList *data_list) {
     TA_SAFE_FREE(head);
 }
 
-#if defined(USE_POSIX)
-static int ta_async_batch_consumer_flush(void* this_)
-#elif defined(_WIN32)
-static DWORD WINAPI ta_async_batch_consumer_flush(LPVOID this_)
-#endif
-{
+static int ta_batch_consumer_flush(void *this_) {
     TABatchConsumerInter *inter = (TABatchConsumerInter *) this_;
     HttpResponse *response;
-    char *current_data_;
+    char *current_data_ = "";
+
+    td_logInfo("TDBatchConsumer flush data.");
+
     TADataList *data_list = &inter->data_list;
     TAData *current_data = inter->current_data;
     if ((current_data != NULL && current_data->size >= inter->batch_size) || data_list->size <= 0) {
         if (current_data == NULL || current_data->size == 0) {
-            return TA_OK;
+            return TD_OK;
         }
 
         current_data_ = (char *) TA_SAFE_REALLOC(current_data->data, current_data->body_size + 2);
         if (current_data_ == NULL) {
-            return TA_MALLOC_ERROR;
+            return TD_MALLOC_ERROR;
         }
         current_data->data = current_data_;
 
@@ -93,56 +84,48 @@ static DWORD WINAPI ta_async_batch_consumer_flush(LPVOID this_)
     }
 
     if (data_list->size > inter->max_cache_size) {
-        /* remove over sized data */
+        // remove over sized data
         remove_head(data_list);
     }
 
+    td_logInfo("Send data to server. Count: %d", current_data->size);
+
+    response = ta_http_post(inter->appid, inter->push_url, data_list->head->data, data_list->head->size,
+                            strlen(data_list->head->data), inter->timeout);
+    if (response != NULL) {
+        td_logInfo("Response: status=%ld, body=%s", response->status, response->body);
+
+        if (response->status == 200) {
+            remove_head(data_list);
+            destroy_http_response(response);
+            return TD_OK;
+        } else {
+            destroy_http_response(response);
+        }
+    }
+    return TD_IO_ERROR;
+}
+
+static int ta_batch_consumer_close(void *this_) {
+    TABatchConsumerInter *inter;
     int retryCount = 0;
-    while (inter->data_list.size > 0 && retryCount < 50) {
-        response = ta_http_post(inter->appid, inter->push_url, data_list->head->data, data_list->head->size,
-                                strlen(data_list->head->data), inter->timeout);
-        if (response != NULL) {
-            if (inter->log) {
-                ta_debug("response: status=%ld, body=%s\n", response->status, response->body);
-            }
-            if (response->status == 200) {
-                remove_head(data_list);
-                destroy_http_response(response);
-                retryCount = 0;
-            } else {
-                destroy_http_response(response);
-                retryCount++;
-            }
+
+    if (NULL == this_) {
+        return TD_INVALID_PARAMETER_ERROR;
+    }
+
+    inter = (TABatchConsumerInter *) this_;
+    while (inter->data_list.size > 0 && inter->current_data->size > 0 && retryCount < 50) {
+        if (TD_OK == ta_batch_consumer_flush(inter)) {
+            retryCount = 0;
         } else {
             retryCount++;
         }
     }
 
-    return TA_OK;
-}
+    td_logInfo("TDBatchConsumer close.");
 
-static int ta_batch_consumer_flush(void *this_) {
-#if defined(USE_POSIX)
-    pthread_t pId;
-    int ret;
-    ret = pthread_create(&pId, NULL, (void* (*)(void*)) ta_async_batch_consumer_flush, this_);
-    if (ret != 0)
-    {
-        ta_debug("create pthread error!");
-    }
-    pthread_join(pId, NULL);
-#elif defined(_WIN32)
-    ta_async_batch_consumer_flush(this_);
-#endif
-    return TA_OK;
-}
-
-static int ta_batch_consumer_close(void *this_) {
-    if (NULL == this_) {
-        return TA_INVALID_PARAMETER_ERROR;
-    }
-    ta_batch_consumer_flush(this_);
-    return TA_OK;
+    return TD_OK;
 }
 
 static int add_to_list(TABatchConsumerInter *inter, const char *event, unsigned long length) {
@@ -184,22 +167,23 @@ static int ta_batch_consumer_add(void *this_, const char *event, unsigned long l
     int count;
 
     if (NULL == this_ || NULL == event) {
-        return TA_INVALID_PARAMETER_ERROR;
+        return TD_INVALID_PARAMETER_ERROR;
     }
 
     inter = (TABatchConsumerInter *) this_;
     count = add_to_list(inter, event, length);
     if (count == -1) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
+    td_logInfo("Enqueue data to buffer. Data: %s", event);
     if (count >= inter->batch_size) {
         ta_batch_consumer_flush(inter);
     }
 
-    return TA_OK;
+    return TD_OK;
 }
 
-static void get_config_param_of_batch(TABatchConsumerInter *inter, const TAConfig *config) {
+static void get_config_param_of_batch(TABatchConsumerInter *inter, const TDConfig *config) {
     TAListNode *curr = config->value.child;
     while (NULL != curr) {
         if (NULL != curr->value->key) {
@@ -244,11 +228,11 @@ static void get_config_param_of_batch(TABatchConsumerInter *inter, const TAConfi
     }
 }
 
-int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
-    struct TAConsumer *consumer;
+int td_init_consumer(struct TDConsumer **ta, const TDConfig *config) {
+    struct TDConsumer *consumer;
     TABatchConsumerInter *inter = (TABatchConsumerInter *) TA_SAFE_MALLOC(sizeof(TABatchConsumerInter));
     if (inter == NULL) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
     memset(inter, 0, sizeof(TABatchConsumerInter));
 
@@ -260,11 +244,11 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
         get_config_param_of_batch(inter, config);
     }
 
-    consumer = (struct TAConsumer *) TA_SAFE_MALLOC(sizeof(struct TAConsumer));
+    consumer = (struct TDConsumer *) TA_SAFE_MALLOC(sizeof(struct TDConsumer));
     if (consumer == NULL) {
-        return TA_MALLOC_ERROR;
+        return TD_MALLOC_ERROR;
     }
-    memset(consumer, 0, sizeof(struct TAConsumer));
+    memset(consumer, 0, sizeof(struct TDConsumer));
 
     consumer->this_ = (void *) inter;
     consumer->op.add = &ta_batch_consumer_add;
@@ -272,5 +256,8 @@ int ta_init_consumer(struct TAConsumer **ta, const TAConfig *config) {
     consumer->op.close = &ta_batch_consumer_close;
 
     *ta = consumer;
-    return TA_OK;
+
+    td_logInfo("TDBatchConsumer init. ServerUrl: %s, appId: %s", inter->push_url, inter->appid);
+
+    return TD_OK;
 }

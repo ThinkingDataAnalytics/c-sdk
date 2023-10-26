@@ -1,7 +1,7 @@
 #include <string.h>
-#include "json.h"
-#include "list.h"
-#include "util.h"
+#include "td_json.h"
+#include "td_list.h"
+#include "td_util.h"
 
 char *print_string(const char *str) {
     const char *ptr;
@@ -68,7 +68,7 @@ char *print_string(const char *str) {
 static char *print_array(const struct TANode *node, int depth) {
     char **entries = 0;
     char *out = 0, *ptr, *ret;
-    int len = 5;
+    unsigned int len = 5;
     struct TAListNode *child = node->value.child;
     int numentries = 0, i = 0, fail = 0;
 
@@ -87,7 +87,7 @@ static char *print_array(const struct TANode *node, int depth) {
     while (child && !fail) {
         entries[i++] = ret = print_node(child->value, depth);
         if (ret)
-            len += strlen(ret) + 2;
+            len += (unsigned int)strlen(ret) + 2;
         else
             fail = 1;
         child = child->next;
@@ -128,7 +128,7 @@ static char *print_array(const struct TANode *node, int depth) {
 char *print_object(const struct TANode *node, int depth) {
     char **entries = 0, **names = 0;
     char *out = 0, *ptr, *ret, *str;
-    int len = 7, i = 0;
+    unsigned int len = 7, i = 0;
     struct TAListNode *child = node->value.child;
     int numentries = 0, fail = 0;
     while (child) {
@@ -153,7 +153,7 @@ char *print_object(const struct TANode *node, int depth) {
         names[i] = str = print_string(child->value->key);
         entries[i++] = ret = print_node(child->value, depth);
         if (str && ret)
-            len += strlen(ret) + strlen(str) + 2;
+            len += (unsigned int)strlen(ret) + strlen(str) + 2;
         else
             fail = 1;
         child = child->next;
