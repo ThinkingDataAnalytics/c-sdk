@@ -1,3 +1,10 @@
+### v2.0.0
+**Date:** 2023/11/30
+
+**Notes:**
+
+* Release the official version
+
 ### v2.0.0-beta.1
 **Date:** 2023/09/21
 
